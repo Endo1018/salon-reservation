@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useReservationStore } from '@/store/reservationStore';
-import { Reservation, ResourceId } from '@/types';
+import { Reservation, ResourceId, RESOURCES } from '@/types';
 import { cn, isOverlapping, findAvailableResource } from '@/lib/utils';
 import { format, parseISO, addMinutes } from 'date-fns';
 import { X } from 'lucide-react';
@@ -59,8 +59,19 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
             setSelectedMenuName(reservation.menuName);
             setClientName(reservation.clientName || '');
 
-            // Detect category from menuName
-            const cat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => reservation.menuName.startsWith(c));
+            // Detect category from menuName OR ResourceId
+            let cat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => reservation.menuName.startsWith(c));
+
+            if (!cat) {
+                // Fallback: Infer from Resource ID
+                const resDef = RESOURCES.find(r => r.id === reservation.resourceId);
+                if (resDef) {
+                    // Type assertion might be needed if category in RESOURCE isn't strictly ResourceCategoryName
+                    // But usually it matches.
+                    cat = resDef.category as ResourceCategoryName;
+                }
+            }
+
             setSelectedCategory(cat || null);
         }
     }, [reservation, isOpen]);
@@ -107,7 +118,16 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
                     pMenuName = selectedMenuName;
                     pStaffId = selectedStaff;
 
-                    const targetCat = selectedCategory || (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => part.menuName.startsWith(c));
+                    // Use selectedCategory if available, otherwise fallback to part name detection or resource fallback
+                    let targetCat = selectedCategory;
+                    if (!targetCat) {
+                        targetCat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => part.menuName.startsWith(c)) || null;
+                        if (!targetCat) {
+                            const resDef = RESOURCES.find(r => r.id === part.resourceId);
+                            if (resDef) targetCat = resDef.category as ResourceCategoryName;
+                        }
+                    }
+
                     if (targetCat) {
                         const nextEnd = addMinutes(pStart, pDuration).toISOString();
                         const newRes = findAvailableResource(targetCat as ResourceCategoryName, pStart.toISOString(), nextEnd, reservations.filter(r => r.comboLinkId !== reservation.comboLinkId));
@@ -116,12 +136,26 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
                             return;
                         }
                         pResourceId = newRes as ResourceId;
+                    } else {
+                        setError(`Could not determine service category for ${part.menuName}.`);
+                        return;
                     }
                 } else {
                     const prev = proposedSequence[idx - 1];
                     pStart = parseISO(prev.endAt);
                     pDuration = (parseISO(part.endAt).getTime() - parseISO(part.startAt).getTime()) / 60000;
-                    const pCat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => part.menuName.startsWith(c));
+
+                    let pCat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => part.menuName.startsWith(c));
+                    if (!pCat) {
+                        const resDef = RESOURCES.find(r => r.id === part.resourceId);
+                        if (resDef) pCat = resDef.category as ResourceCategoryName;
+                    }
+
+                    if (!pCat) {
+                        setError(`Could not detect category for part: ${part.menuName}`);
+                        return;
+                    }
+
                     const nextEnd = addMinutes(pStart, pDuration).toISOString();
                     const newRes = findAvailableResource(pCat as ResourceCategoryName, pStart.toISOString(), nextEnd, reservations.filter(r => r.comboLinkId !== reservation.comboLinkId));
                     if (!newRes) {
@@ -167,8 +201,18 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
             });
 
         } else {
-            const currentCat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => reservation.menuName.startsWith(c));
-            const categoryToUse = selectedCategory || currentCat;
+            // SINGLE RESERVATION LOGIC
+            let categoryToUse = selectedCategory;
+
+            // If not selected, try to infer again
+            if (!categoryToUse) {
+                const currentCat = (Object.keys(SIMPLE_MENU_OPTIONS) as ResourceCategoryName[]).find(c => reservation.menuName.startsWith(c));
+                categoryToUse = currentCat || null;
+            }
+            if (!categoryToUse) {
+                const resDef = RESOURCES.find(r => r.id === reservation.resourceId);
+                if (resDef) categoryToUse = resDef.category as ResourceCategoryName;
+            }
 
             if (!categoryToUse) {
                 setError("Could not determine service category.");
@@ -184,7 +228,11 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
 
             let targetResourceId = reservation.resourceId;
 
-            if (!isResourceStillAvailable || (selectedCategory && selectedCategory !== currentCat)) {
+            // Check if we need to switch resource (if busy OR if we changed category manually)
+            const currentCatFromRes = RESOURCES.find(r => r.id === reservation.resourceId)?.category;
+            const categoryChanged = selectedCategory && selectedCategory !== currentCatFromRes;
+
+            if (!isResourceStillAvailable || categoryChanged) {
                 const newRes = findAvailableResource(
                     categoryToUse,
                     newStartAt,
