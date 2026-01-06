@@ -2,13 +2,16 @@
 
 import { useReservationStore } from '@/store/reservationStore';
 import { Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 export function ClearAllButton() {
-    const clearAll = useReservationStore(state => state.clearAllReservations);
+    const clearReservationsForDate = useReservationStore(state => state.clearReservationsForDate);
+    const selectedDate = useReservationStore(state => state.selectedDate);
 
     const handleClear = () => {
-        if (confirm("全ての予約を削除してもよろしいですか？この操作は取り消せません。")) {
-            clearAll();
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        if (confirm(`${dateStr} の予約を全て削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+            clearReservationsForDate(selectedDate);
         }
     };
 

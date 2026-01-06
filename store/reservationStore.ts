@@ -14,7 +14,9 @@ interface ReservationState {
     removeReservation: (id: string) => Promise<void>;
     updateStatus: (id: string, status: Reservation['status']) => Promise<void>;
     updateReservation: (id: string, updates: Partial<Reservation>) => Promise<void>;
-    clearAllReservations: () => Promise<void>;
+    selectedDate: Date;
+    setSelectedDate: (date: Date) => void;
+    clearReservationsForDate: (date: Date) => Promise<void>;
     // Staff Availability
     availableStaff: string[];
     toggleStaffAvailability: (staffId: string) => Promise<void>;
@@ -39,6 +41,9 @@ interface ReservationState {
 
 export const useReservationStore = create<ReservationState>((set, get) => ({
     reservations: [],
+    selectedDate: new Date(),
+
+    setSelectedDate: (date) => set({ selectedDate: date }),
 
     addReservation: async (reservation) => {
         set((state) => ({ reservations: [...state.reservations, reservation] }));
@@ -91,11 +96,28 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
         else console.log('Successfully updated reservation');
     },
 
-    clearAllReservations: async () => {
-        set({ reservations: [] });
-        const { error } = await supabase.from('reservations').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-        if (error) console.error('Supabase clear all error:', error);
-        else console.log('Successfully cleared all reservations');
+    clearReservationsForDate: async (date) => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+
+        // Remove from local state
+        set((state) => ({
+            reservations: state.reservations.filter(r => !r.startAt.startsWith(dateStr))
+        }));
+
+        // Remove from Supabase
+        // Filter by start_at between [date 00:00, date 23:59:59]
+        // Actually simpler to filter by text matching YYYY-MM-DD
+        const startOfDay = `${dateStr}T00:00:00`;
+        const endOfDay = `${dateStr}T23:59:59`;
+
+        const { error } = await supabase
+            .from('reservations')
+            .delete()
+            .gte('start_at', startOfDay)
+            .lte('start_at', endOfDay);
+
+        if (error) console.error('Supabase clear date error:', error);
+        else console.log(`Successfully cleared reservations for ${dateStr}`);
     },
 
     availableStaff: [],

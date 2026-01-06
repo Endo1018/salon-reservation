@@ -23,9 +23,11 @@ const timeLabels = Array.from({ length: TOTAL_HOURS + 1 }).map((_, i) => START_H
 export function GanttChart() {
     const reservations = useReservationStore(state => state.reservations);
     const availableStaff = useReservationStore(state => state.availableStaff);
+    const selectedDate = useReservationStore(state => state.selectedDate);
+    const setSelectedDate = useReservationStore(state => state.setSelectedDate);
     const staff = useMetaStore(state => state.staff);
 
-    const [selectedDate, setSelectedDate] = React.useState(new Date());
+    // const [selectedDate, setSelectedDate] = React.useState(new Date()); (Removed)
 
     // Calculate free staff for a given hour on the SELECTED date
     const getFreeStaffCount = (hour: number) => {
@@ -135,14 +137,22 @@ export function GanttChart() {
                     <div className="w-48 flex-shrink-0 border-r p-2 font-bold text-gray-700 flex flex-col items-center justify-center">
                         <div className="flex items-center gap-2 mb-1">
                             <button
-                                onClick={() => setSelectedDate(d => new Date(d.setDate(d.getDate() - 1)))}
+                                onClick={() => {
+                                    const prev = new Date(selectedDate);
+                                    prev.setDate(prev.getDate() - 1);
+                                    setSelectedDate(prev);
+                                }}
                                 className="p-1 hover:bg-gray-200 rounded text-gray-400"
                             >
                                 ←
                             </button>
                             <span>Resource</span>
                             <button
-                                onClick={() => setSelectedDate(d => new Date(d.setDate(d.getDate() + 1)))}
+                                onClick={() => {
+                                    const next = new Date(selectedDate);
+                                    next.setDate(next.getDate() + 1);
+                                    setSelectedDate(next);
+                                }}
                                 className="p-1 hover:bg-gray-200 rounded text-gray-400"
                             >
                                 →
