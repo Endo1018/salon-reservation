@@ -1,0 +1,12 @@
+Vercel CLI 50.1.3
+
+  Visit https://vercel.com/oauth/device?user_code=RBMH-WXCT
+  Press [ENTER] to open the browser
+Waiting for authentication...
+[2K[1A[2K[G
+  Congratulations! You are now signed in.
+
+  To deploy something, run `vercel`.
+
+  💡 To deploy every commit automatically,
+  connect a Git Repository (vercel.link/git (https://vercel.link/git)).
