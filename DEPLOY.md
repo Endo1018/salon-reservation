@@ -1,37 +1,60 @@
-# Deployment Guide (Vercel + PostgreSQL)
+# System Connections & Deployment Guide
 
-Your application is now ready for the cloud! Follow these steps to publish it.
+This file serves as the **SINGLE SOURCE OF TRUTH** for all system connections.
+**Rule:** always verify these settings before diagnosing "not reflected" issues.
 
-## 1. Create a GitHub Repository
-1.  Go to [GitHub.com](https://github.com/new).
-2.  Create a new repository (e.g., `spa-attendance-app`).
-3.  Run the following commands in your terminal (`webapp` folder):
+## 1. Connection Information (Critical)
 
-```bash
-# Repository: https://github.com/Endo1018/salon-reservation.git
-git remote add origin https://github.com/Endo1018/salon-reservation.git
-git branch -M main
-git push -u origin main
-```
+### A. Git Repository
+*   **Repository URL:** `https://github.com/Endo1018/salon-reservation.git`
+*   **Production Branch:** `main`
 
-## 2. Deploy on Vercel
-1.  Go to [Vercel.com](https://vercel.com/new).
-2.  Import your `spa-attendance-app` repository.
-3.  **Database Integration**:
-    *   In the "Storage" section of the setup (or after created), click "Add" -> "Postgres".
-    *   Accept the terms and create the database.
-    *   Vercel will automatically add environment variables (`POSTGRES_URL` etc.) to your project.
-4.  **Deploy**:
-    *   Click "Deploy".
-    *   Vercel will build your app and verify the database connection.
+### B. Vercel Project
+*   **Project Name:** `webapp` (connected to `Endo1018/salon-reservation`)
+*   **Project URL:** `https://salon-reservation-three.vercel.app` (or `webapp-mauve-rho.vercel.app`)
+*   **Note:** If deployment is not triggered, check **Settings > Git** to ensure it is connected to `Endo1018/salon-reservation`.
 
-## 3. Post-Deployment Setup
-Once the site is live:
-1.  Go to the Vercel Project Dashboard.
-2.  Click "Storage" -> "Browser" (or Query console).
-3.  You need to "Seed" the initial data (Staff, etc.) or you can use the **Staff Management** page (`/admin/staff`) on the live site to create your first admin user.
-    *   *Note: Since the database is fresh, it will be empty.*
+### C. Database (Neon / PostgreSQL)
+*   **Provider:** Neon (AWS us-east-1)
+*   **Environment Variable Key:** `DATABASE_URL`
+*   **Value (Production/Vercel):**
+    ```text
+    postgresql://neondb_owner:npg_bT2Uq3aVstod@ep-rough-bonus-ahqucvo1-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require
+    ```
+    *(Set this in Vercel > Settings > Environment Variables)*
+
+### D. Google Sheets Integration
+*   **Service Account:** `your-service-account@example.com` (Check `.env.local` for `GOOGLE_CLIENT_EMAIL` and `GOOGLE_PRIVATE_KEY`)
+*   **Spreadsheet ID:** `your_spreadsheet_id_here` (Check `.env.local` for `SPREADSHEET_ID`)
+    *   *Required Permission:* The Service Account must be an **Editor** of this spreadsheet.
 
 ---
-**Troubleshooting**:
-If the build fails on "Prisma Client", make sure you ran the `postinstall` script or Vercel's default "Install Command" (`npm install`) should handle it.
+
+## 2. Deployment Steps
+
+### Initial Setup (One-time)
+1.  **Git Remote Setup**:
+    ```bash
+    git remote add origin https://github.com/Endo1018/salon-reservation.git
+    git branch -M main
+    ```
+
+2.  **Vercel Connection**:
+    *   Import repository `Endo1018/salon-reservation`.
+    *   Add `DATABASE_URL` to Environment Variables.
+
+### Routine Deployment (Update)
+1.  **Commit & Push**:
+    ```bash
+    git add .
+    git commit -m "feat: description of changes"
+    git push origin main
+    ```
+2.  **Verify**:
+    *   Check Vercel Dashboard for "Building" status.
+    *   If not building, check the Git connection setting in Vercel.
+
+## 3. Post-Deployment Checks
+1.  **Staff Wage UI**: Verify `BHXH` is visible in `/admin/staff`.
+2.  **Database**: Verify data persistence.
+
