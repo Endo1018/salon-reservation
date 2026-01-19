@@ -1,25 +1,23 @@
 {
-  "name": "app",
+  "name": "webapp",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.89.0",
-    "@types/papaparse": "^5.5.2",
-    "clsx": "^2.1.1",
-    "date-fns": "^4.1.0",
-    "lucide-react": "^0.562.0",
+    "@prisma/client": "^6.19.1",
+    "dotenv": "^17.2.3",
+    "googleapis": "^170.0.0",
     "next": "16.1.1",
-    "papaparse": "^5.5.3",
+    "prisma": "^6.19.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.9"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

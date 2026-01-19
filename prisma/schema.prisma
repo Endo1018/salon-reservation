@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Uses POSTGRES_URL_NON_POOLING automatically in Vercel usually, or just connection string
+}
+
+model Staff {
+  id             String       @id // S001 etc.
+  name           String
+  role           String       // Therapist or Reception
+  baseWage       Int          // Hourly or Base
+  insuranceBaseSalary Int     @default(0) // New: Fixed Insurance Base
+  commissionRate Int          @default(0)
+  incentiveRate  Int          @default(0)
+  dependents     Int          @default(0) // For PIT
+  isActive       Boolean      @default(true)
+  
+  // Fixed Allowances
+  allowancePosition      Int       @default(0) // 役職手当
+  allowanceCommute       Int       @default(0) // 通勤手当
+  allowanceCommunication Int       @default(0) // 通信手当
+  allowanceMeal          Int       @default(0) // 食事手当
+  allowanceHousing       Int       @default(0) // 住宅手当
+  allowanceLanguage      Int       @default(0) // 外語手当
+  allowanceOther         Int       @default(0) // その他手当
+
+  shifts         Shift[]
+  attendance     Attendance[]
+  adjustments    PayrollAdjustment[]
+}
+
+model Shift {
+  id        Int      @id @default(autoincrement())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  date      DateTime // YYYY-MM-DD 00:00:00
+  status    String   // 'Confirmed' | 'Off'
+  start     String?  // "10:00"
+  end       String?  // "19:00"
+
+  @@unique([staffId, date])
+}
+
+model Attendance {
+  id            Int      @id @default(autoincrement())
+  staffId       String
+  staff         Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  date          DateTime
+  start         String?  // "09:55"
+  end           String?  // "19:05"
+  breakTime     Float    @default(1.0) // 1.0 hour default
+  workHours     Float    @default(0)
+  overtime      Float    @default(0)
+  isOvertime    Boolean  @default(false)
+  perfHours     Float    @default(0) // For Therapist
+  perfReviews   Int      @default(0) // For Reception
+  status        String   // 'Normal' | 'Error'
+}
+
+model PayrollAdjustment {
+  id        Int      @id @default(autoincrement())
+  staffId   String
+  year      Int
+  month     Int
+  commission Int      @default(0) // Manual Override/Add
+  incentive  Int      @default(0)
+  bonus      Int      @default(0)
+  deduction  Int      @default(0) // General Deduction (Advance Salary etc)
+  
+  // Allowances
+  allowancePosition      Int @default(0)
+  allowanceCommute       Int @default(0)
+  allowanceCommunication Int @default(0)
+  allowanceMeal          Int @default(0)
+  allowanceHousing       Int @default(0)
+  allowanceLanguage      Int @default(0)
+  allowanceOther         Int @default(0)
+
+  // Other Adjustments
+  fine       Int      @default(0) // Deduction from Net
+  taxRefund  Int      @default(0) // Addition to Net (Negative Tax)
+
+  notes      String?
+
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, year, month])
+}
