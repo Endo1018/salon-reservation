@@ -3,13 +3,14 @@ import { Staff } from '@prisma/client';
 import { formatCurrencyVND } from '@/lib/payroll-engine';
 
 // Register a font that supports Vietnamese characters
+// Using local fonts to avoid CORS/network issues with CDN
 Font.register({
     family: 'Roboto',
     fonts: [
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf', fontWeight: 'normal' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf', fontWeight: 'bold' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-medium-webfont.ttf', fontWeight: 'medium' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf', fontWeight: 'light' },
+        { src: '/fonts/Roboto-Regular.ttf', fontWeight: 'normal' },
+        { src: '/fonts/Roboto-Bold.ttf', fontWeight: 'bold' },
+        { src: '/fonts/Roboto-Medium.ttf', fontWeight: 'medium' },
+        { src: '/fonts/Roboto-Light.ttf', fontWeight: 'light' },
     ]
 });
 
