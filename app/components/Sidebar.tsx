@@ -14,7 +14,7 @@ export default function Sidebar() {
         { name: 'Shifts', href: '/admin/shifts', icon: 'calendar' },
         { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
         { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
-        { name: 'Booking', href: '/admin/booking', icon: 'calendar' },
+        { name: 'Booking', href: '/admin/booking', icon: 'book' },
     ];
 
     const staffMenu = [
@@ -53,6 +53,7 @@ export default function Sidebar() {
                                 {item.icon === 'calendar' && '▦'}
                                 {item.icon === 'clock' && '◔'}
                                 {item.icon === 'money' && '$'}
+                                {item.icon === 'book' && '📖'}
                                 {item.icon === 'user' && '☃'}
                             </span>
                             {item.name}
