@@ -66,7 +66,7 @@ export async function importAttendanceFromExcel(formData: FormData) {
             const row = data[i];
             if (!row || row.length < 3) continue;
 
-            let cellId = row[1]; // Col B: Mã nhân viên
+            const cellId = row[1]; // Col B: Mã nhân viên
 
             if (cellId) {
                 // New Staff ID block

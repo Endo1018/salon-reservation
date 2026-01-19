@@ -166,7 +166,7 @@ export function calculateStaffPayroll(
     let overtimePayTotal = 0;
     let holidayWorkPayTotal = 0;
     let commissionTotal = 0;
-    let incentiveTotal = 0;
+    const incentiveTotal = 0;
 
     // Aggregates for display
     let totalWorkHours = 0;
@@ -275,7 +275,7 @@ export function calculateStaffPayroll(
 
     // Determine Base
     // If insuranceBaseSalary is set > 0, use it. Otherwise fallback to BaseWage + Pos + Lang + Other (Legacy).
-    let insuranceBase = staff.insuranceBaseSalary && staff.insuranceBaseSalary > 0
+    const insuranceBase = staff.insuranceBaseSalary && staff.insuranceBaseSalary > 0
         ? staff.insuranceBaseSalary
         : (staff.baseWage + allowPos + allowLanguage + allowOther);
 
@@ -286,7 +286,7 @@ export function calculateStaffPayroll(
     // User said: "Unpaid >= 14 days (Actual <= 12) -> 0". 
     // So if totalPaidDays <= 12, 0.
 
-    let insurance = { si: 0, hi: 0, ui: 0, tu: 0, total: 0 };
+    const insurance = { si: 0, hi: 0, ui: 0, tu: 0, total: 0 };
 
     if (totalPaidDays > 12) {
         insurance.si = Math.round(insuranceBase * 0.08); // 8%
