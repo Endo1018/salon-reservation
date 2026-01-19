@@ -234,20 +234,23 @@ export function BookingDialog({ isOpen, onClose, initialStartTime, initialResour
                             {staff.map(staffName => {
                                 const isAvailable = availableStaff.includes(staffName);
                                 return (
-                                    <div
+                                    <button
+                                        type="button"
                                         key={staffName}
-                                        onClick={() => setSelectedStaffId(staffName)}
+                                        onClick={() => isAvailable && setSelectedStaffId(staffName)}
+                                        disabled={!isAvailable}
                                         className={cn(
                                             "cursor-pointer text-center text-[10px] font-bold border rounded py-1.5 px-1 transition-all active:scale-95",
                                             selectedStaffId === staffName
                                                 ? "bg-gray-900 text-white border-gray-900 shadow-sm"
                                                 : isAvailable
                                                     ? "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                                                    : "bg-gray-50 text-gray-300 border-gray-100 opacity-60"
+                                                    : "bg-gray-50 text-gray-300 border-gray-100 opacity-30 cursor-not-allowed grayscale" // Dim heavily if unavailable (OFF)
                                         )}
+                                        title={!isAvailable ? "Unavailable / OFF" : "Select Staff"}
                                     >
                                         {staffName}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
