@@ -9,11 +9,6 @@ export async function getStaffShifts(dateInput: Date | string) {
         ? dateInput
         : dateInput.toISOString().split('T')[0];
 
-    // Construct start/end from the string explicitly in UTC or local?
-    // Prisma matches DateTime. 
-    // IF shifts are stored as "Midnight UTC" (common for date-only fields without time type), 
-    // we should query for the range of that day in UTC.
-
     // WIDE SEARCH WINDOW: Catch shifts that might be saved with Timezone offsets
     // Start: Target Date - 1 Day
     // End: Target Date + 2 Days
@@ -25,9 +20,12 @@ export async function getStaffShifts(dateInput: Date | string) {
 
     console.log(`[getStaffShifts] Input: ${dateStr}, Window: ${searchStart.toISOString()} - ${searchEnd.toISOString()}`);
 
-    // Fetch all active staff
+    // Fetch all active THERAPISTS only
     const staffList = await prisma.staff.findMany({
-        where: { isActive: true },
+        where: {
+            isActive: true,
+            role: 'Therapist'
+        },
         select: { id: true, name: true }
     });
 
@@ -41,26 +39,40 @@ export async function getStaffShifts(dateInput: Date | string) {
         },
         select: {
             staffId: true,
-            status: true, // 'WORK' | 'OFF' | etc.
+            status: true,
             date: true
         }
     });
 
     console.log(`[getStaffShifts] Found ${shifts.length} shifts in window.`);
 
-    // Map shifts by staff name (or ID, but booking system currently uses Names heavily. 
-    // The previous implementation used Names as IDs. 
-    // We need to be careful: Does "StaffAttendance" use Name or ID?
-    // Looking at StaffAttendance.tsx: `staff` is from `useMetaStore`, which is `string[]` (names).
-    // So we should map by Name for compatibility, OR migrate to IDs.
-    // Migration is safer but bigger. Let's return Map<Name, Status> for now to match `menustaff.csv` headers.
-
-    // Using Name as key to match existing system
+    // Map shifts by staff name
     const shiftMap: Record<string, string> = {};
 
     shifts.forEach(s => {
         const staff = staffList.find(st => st.id === s.staffId);
-        if (staff) {
+        if (!staff) return;
+
+        // Robust Timezone Matching
+        // Determine if this shift record belongs to the target 'dateStr' requested by the user.
+        // We check if the shift time (DB UTC) is "close enough" (within -10h to +24h window) to the target date.
+
+        const dbDate = new Date(s.date);
+        const targetDate = new Date(dateStr); // UTC midnight of target dateStr
+
+        // Diff in hours
+        const diffHours = (dbDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60);
+
+        // Typical offsets: -8 (US) to +9 (Japan) to +7 (BKK).
+        // Matches:
+        // - 17:00 prev day (-7h offset for 00:00) -> diff -7
+        // - 00:00 curr day (UTC) -> diff 0
+        // - 09:00 curr day (+9h) -> diff 9
+
+        const isLikelyMatch = diffHours > -12 && diffHours < 18;
+
+        if (isLikelyMatch) {
+            console.log(`[getStaffShifts] MATCH ${staff.name}: ${s.status} (DB: ${s.date.toISOString()}, Offset: ${diffHours.toFixed(1)}h)`);
             shiftMap[staff.name] = s.status;
         }
     });
