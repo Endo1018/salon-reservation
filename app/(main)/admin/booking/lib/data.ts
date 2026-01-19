@@ -85,9 +85,20 @@ export function parseMenuCSV(csvContent: string): { menus: Menu[], allStaff: str
         const type = (typeStr && typeStr.toLowerCase() === 'combo') ? 'Combo' : 'Single';
         const massageTime = row['Massage Time'] ? parseInt(row['Massage Time'], 10) : undefined;
         const headSpaTime = row['Head Spa Time'] ? parseInt(row['Head Spa Time'], 10) : undefined;
-        const category = row['カテゴリ'] || 'Unknown';
+        const categoryFromCSV = row['カテゴリ'] || 'Unknown';
+        let resourceCategory = 'Massage Seat'; // Default
 
-        // Staff availability
+        if (headSpaTime && headSpaTime > 0) {
+            resourceCategory = 'Head Spa';
+        } else if (
+            (name && name.toLowerCase().includes('aroma')) ||
+            (categoryFromCSV && categoryFromCSV.toLowerCase().includes('aroma'))
+        ) {
+            resourceCategory = 'Aroma Room';
+        } else {
+            resourceCategory = 'Massage Seat';
+        }
+
         const allowedStaff: string[] = [];
         staffNames.forEach(staff => {
             const val = row[staff];
@@ -97,16 +108,14 @@ export function parseMenuCSV(csvContent: string): { menus: Menu[], allStaff: str
         });
 
         menus.push({
-            id: name, // Unique enough? duplicate names in CSV?
-            // CSV has "Thai Massage 2026" with diff durations.
-            // So ID should include duration: `${name}-${duration}`
+            id: name,
             name,
             duration,
             price,
             type,
             massageTime,
             headSpaTime,
-            category,
+            category: resourceCategory, // Computed category
             allowedStaff
         });
     });

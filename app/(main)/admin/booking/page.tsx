@@ -7,6 +7,8 @@ import { ClearAllButton } from '@/app/(main)/admin/booking/components/ClearAllBu
 // We fetch data on server and pass to client if needed, or client fetches via API.
 // For now, let's just render the Gantt Chart. Menu data loading can happen in the booking dialog or provided via Context.
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const { menus } = await loadMenuData(); // Ignore allStaff from CSV
   const { getStaffShifts } = await import('@/app/actions/booking');
