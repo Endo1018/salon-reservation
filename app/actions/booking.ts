@@ -14,9 +14,16 @@ export async function getStaffShifts(dateInput: Date | string) {
     // IF shifts are stored as "Midnight UTC" (common for date-only fields without time type), 
     // we should query for the range of that day in UTC.
 
-    // Assuming 'dateStr' is '2026-01-19'
-    const start = new Date(`${dateStr}T00:00:00.000Z`);
-    const end = new Date(`${dateStr}T23:59:59.999Z`);
+    // WIDE SEARCH WINDOW: Catch shifts that might be saved with Timezone offsets
+    // Start: Target Date - 1 Day
+    // End: Target Date + 2 Days
+    const searchStart = new Date(dateStr);
+    searchStart.setDate(searchStart.getDate() - 1);
+
+    const searchEnd = new Date(dateStr);
+    searchEnd.setDate(searchEnd.getDate() + 2);
+
+    console.log(`[getStaffShifts] Input: ${dateStr}, Window: ${searchStart.toISOString()} - ${searchEnd.toISOString()}`);
 
     // Fetch all active staff
     const staffList = await prisma.staff.findMany({
@@ -24,19 +31,22 @@ export async function getStaffShifts(dateInput: Date | string) {
         select: { id: true, name: true }
     });
 
-    // Fetch shifts for the date
+    // Fetch shifts for the date (Wide Window)
     const shifts = await prisma.shift.findMany({
         where: {
             date: {
-                gte: start,
-                lte: end
+                gte: searchStart,
+                lte: searchEnd
             }
         },
         select: {
             staffId: true,
-            status: true // 'WORK' | 'OFF' | etc.
+            status: true, // 'WORK' | 'OFF' | etc.
+            date: true
         }
     });
+
+    console.log(`[getStaffShifts] Found ${shifts.length} shifts in window.`);
 
     // Map shifts by staff name (or ID, but booking system currently uses Names heavily. 
     // The previous implementation used Names as IDs. 
