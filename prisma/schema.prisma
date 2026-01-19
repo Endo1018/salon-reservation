@@ -33,6 +33,7 @@ model Staff {
   shifts         Shift[]
   attendance     Attendance[]
   adjustments    PayrollAdjustment[]
+  bookings       Booking[]
 }
 
 model Shift {
@@ -91,4 +92,48 @@ model PayrollAdjustment {
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, year, month])
+}
+
+// Booking System Models
+
+model Customer {
+  id        String    @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  
+  bookings  Booking[]
+}
+
+model Service {
+  id           String   @id @default(uuid())
+  name         String
+  duration     Int
+  price        Int
+  type         String   // Single, Combo
+  category     String
+  description  String?
+  allowedStaff String[] // Array of staff IDs or names stored as JSON/String[]
+  
+  bookings     Booking[]
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  menuId      String
+  menuName    String
+  staffId     String
+  startAt     DateTime
+  endAt       DateTime
+  resourceId  String
+  status      String   // Hold, Confirmed, etc.
+  clientName  String?
+  comboLinkId String?
+  isComboMain Boolean  @default(false)
+  
+  service     Service? @relation(fields: [menuId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  customerId  String?
+  staff       Staff?   @relation(fields: [staffId], references: [id])
 }
