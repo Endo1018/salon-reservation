@@ -8,7 +8,9 @@ import { ClearAllButton } from '@/app/(main)/admin/booking/components/ClearAllBu
 // For now, let's just render the Gantt Chart. Menu data loading can happen in the booking dialog or provided via Context.
 
 export default async function Home() {
-  const { menus, allStaff } = await loadMenuData();
+  const { menus } = await loadMenuData(); // Ignore allStaff from CSV
+  const { getStaffShifts } = await import('@/app/actions/booking');
+  const { staffNames } = await getStaffShifts(new Date());
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-slate-200 p-6">
@@ -24,11 +26,7 @@ export default async function Home() {
         <GanttChart />
       </div>
 
-      {/* Hidden Data Hydration or Context Provider?
-          We might need to pass menus/staff to the store or a context so the Booking Dialog can use them.
-          Let's create a Client Component wrapper to hydrate the store or provide context.
-      */}
-      <DataInitializer menus={menus} staff={allStaff} />
+      <DataInitializer menus={menus} staff={staffNames} />
     </div>
   );
 }

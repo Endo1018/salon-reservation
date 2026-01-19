@@ -14,21 +14,15 @@ export function DataInitializer({ menus, staff }: { menus: Menu[], staff: string
 
     useEffect(() => {
         const init = async () => {
+            // Set menus and staff in the store directly from props (which come from Server Side DB/CSV)
             setMeta(menus, staff);
 
-            // Seed staff data if empty
-            const { data: existingStaff } = await supabase.from('staff').select('id').limit(1);
-            if (!existingStaff || existingStaff.length === 0) {
-                console.log('Seeding staff data from CSV...');
-                const staffData = staff.map(name => ({ name }));
-                await supabase.from('staff').insert(staffData);
-            }
-
-            await fetchStaff();
+            // Fetch reservation data (and availability/shifts)
             await fetchData();
         };
         init();
-    }, [menus, staff, setMeta, fetchData, fetchStaff]);
+        // Recalculate if menus/staff props change (e.g. navigation)
+    }, [menus, staff, setMeta, fetchData]);
 
     return null;
 }
