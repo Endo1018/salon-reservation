@@ -111,6 +111,7 @@ model Service {
   name         String
   duration     Int
   price        Int
+  commission   Int      @default(0) // Commission amount for staff per service
   type         String   // Single, Combo
   category     String   // Massage Seat, Head Spa, Aroma Room
   description  String?
