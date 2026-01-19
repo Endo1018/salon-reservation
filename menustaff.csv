@@ -1,12 +1,39 @@
 ,,,,,,,習得,,,,,,
-メニュー名,時間(分),金額(C),分類(D),Massage Time,Head Spa Time,カテゴリ,Joy,Jen,Daisy,Chi,Lili,Sam,Kim,Masuda,Parttime1,Parttime2
-Standard Head Spa,60,"890,000",Single,,,Head Spa,○,,,○,,,,,,
-Quick Head Spa,30,"550,000",Single,,,Head Spa,,○,,,,,○,,
-Luxury Head Spa & Treatment,120,"2,750,000",Combo,30,90,Head Spa,○,○,○,○,○,○,○,,,
-Standard Facial,60,"1,080,000",Single,,,Head Spa,,○,,○,,○,,,
-Men's Facial,60,"980,000",Single,,,Head Spa,,,○,,○,,,,
-CHAMPACA AROMA,60,"1,660,000",Single,,,Aroma Room,○,○,○,○,○,○,○,,,
-Hot stone Aroma,60,"1,050,000",Single,,,Aroma Room,○,,,○,,○,,,
-Thai Massage 2026,60,"1,200,000",Single,,,Massage Seat,,,,,○,○,○,○,,,
-Thai Massage 2026,90,"1,500,000",Single,,,Massage Seat,,,,,○,○,○,○,,,
-Body Massage,60,"1,000,000",Single,,,Massage Seat,○,,○,,,,,,,
+メニュー名,時間(分),金額(C),分類(D),Massage Time,Head Spa Time,カテゴリ,Joy,Jen,Daisy,Chi,Lili,Sam,Kim
+Thai Massage 2026,60,1200000,Single,60,,Massage,○,○,○,○,○,○,×
+Thai Massage 2026,90,1500000,Single,90,,Massage,○,○,○,○,○,○,×
+Thai Massage 2026,120,1750000,Single,120,,Massage,○,○,○,○,○,○,×
+Aroma Body Therapy,60,950000,Single,60,,Aroma,○,○,○,○,○,○,○
+Aroma Body Therapy,90,1250000,Single,90,,Aroma,○,○,○,○,○,○,○
+Aroma Body Therapy,120,1500000,Single,120,,Aroma,○,○,○,○,○,○,○
+Non oil Massage,60,850000,Single,60,,Massage,○,○,○,○,○,○,×
+Non oil Massage,90,1150000,Single,90,,Massage,○,○,○,○,○,○,×
+Non oil Massage,120,1350000,Single,120,,Massage,○,○,○,○,○,○,×
+Foot Reflexology,60,880000,Single,60,,Foot,○,○,○,○,○,○,○
+Foot Reflexology,90,1180000,Single,90,,Foot,○,○,○,○,○,○,×
+Hot stone Aroma,60,1050000,Single,60,,Aroma,○,○,○,○,○,○,○
+Hot stone Aroma,90,1350000,Single,90,,Aroma,○,○,○,○,○,○,○
+Hot stone Aroma,120,1600000,Single,120,,Aroma,○,○,○,○,○,○,○
+Quick Head Spa,30,550000,Single,,30,Headspa,○,○,○,○,○,○,×
+Standard Head Spa,60,890000,Single,,60,Headspa,○,○,○,○,○,○,○
+Head Spa & Treatment,75,1600000,Single,,75,Headspa,○,○,○,○,○,○,×
+Silky Bubble Head spa for Scalp,75,1600000,Single,,75,Headspa,○,○,○,○,○,○,×
+Luxury Head Spa & Treatment,120,2500000,Single,,120,Headspa,○,○,○,○,○,○,×
+Men's Facial,60,980000,Single,,60,Headspa,○,○,○,○,○,○,×
+Standard Faicial,60,1080000,Single,,60,Headspa,○,○,○,○,○,○,×
+Premium Facial,90,2280000,Single,,90,Headspa,○,○,×,○,○,○,×
+TOKIO Complete Treatment,90,1800000,Single,,90,Headspa,○,○,×,○,○,○,×
+Quick Treatment,30,800000,Single,,30,Headspa,○,○,○,○,○,○,×
+Birthree First Signature,90,990000,Single,90,,Foot,○,○,○,○,○,○,×
+First time Aroma,90,1180000,Combo,60,30,,,,,,,,
+First time Foot,90,1150000,Combo,60,30,,,,,,,,
+Special offer Massa & TOKIO,135,1960000,Combo,60,75,,,,,,,,
+CHAMPACA THAI,120,1660000,Combo,60,60,,,,,,,,
+CHAMPACA AROMA,120,1660000,Combo,60,60,,,,,,,,
+CHAMPACA FOOT,120,1660000,Combo,60,60,,,,,,,,
+V.I.P Thai,165,2480000,Combo,90,75,,,,,,,,
+V.I.P Aroma,165,2480000,Combo,90,75,,,,,,,,
+V.I.P Foot,165,2480000,Combo,90,75,,,,,,,,
+Couple Course,165,2400000,Combo,90,75,,,,,,,,
+Advance Course,120,1830000,Combo,60,60,,,,,,,,
+Deluxe Course,180,4800000,Combo,90,90,,,,,,,,
