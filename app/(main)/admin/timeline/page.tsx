@@ -1,18 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Users, Briefcase } from 'lucide-react';
 
-export default function NewBookingDashboard() {
+export default function TimelineDashboard() {
     const pathname = usePathname();
     const router = useRouter();
 
     const tabs = [
-        { name: 'Calendar', href: '/admin/booking', icon: Calendar },
-        { name: 'Services', href: '/admin/booking/services', icon: Briefcase },
-        { name: 'Customers', href: '/admin/booking/customers', icon: Users },
+        { name: 'Timeline', href: '/admin/timeline', icon: Calendar },
+        { name: 'Services', href: '/admin/timeline/services', icon: Briefcase },
+        { name: 'Customers', href: '/admin/timeline/customers', icon: Users },
     ];
 
     // Simple Calendar Skeleton (Week View)
@@ -24,7 +23,7 @@ export default function NewBookingDashboard() {
             {/* Header Tabs */}
             <div className="border-b border-slate-800 px-6 pt-4 flex gap-6">
                 {tabs.map(tab => {
-                    const isActive = pathname === tab.href || (tab.href !== '/admin/booking' && pathname.startsWith(tab.href));
+                    const isActive = pathname === tab.href || (tab.href !== '/admin/timeline' && pathname.startsWith(tab.href));
                     const Icon = tab.icon;
                     return (
                         <Link key={tab.name} href={tab.href} className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-bold transition-colors ${isActive ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -40,7 +39,7 @@ export default function NewBookingDashboard() {
             <div className="flex-1 p-6 overflow-hidden flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold flex items-center gap-2">
-                        <span className="text-[var(--primary)]">●</span> 2026 January (New Build)
+                        <span className="text-[var(--primary)]">●</span> 2026 January (Timeline View)
                     </h2>
                     <div className="flex gap-2">
                         <button className="px-3 py-1 bg-slate-800 rounded hover:bg-slate-700 text-xs">Today</button>

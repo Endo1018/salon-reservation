@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { getServices, createService, deleteService, seedInitialServices, updateService } from '@/app/actions/booking-master';
-import { useRouter } from 'next/navigation';
 
 export default function ServicesPage() {
     const [services, setServices] = useState<any[]>([]);
@@ -11,8 +10,6 @@ export default function ServicesPage() {
     const [formData, setFormData] = useState({
         name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0
     });
-
-    const router = useRouter();
 
     const load = async () => {
         setIsLoading(true);
