@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { calculateStaffPayroll, formatCurrencyVND } from '@/lib/payroll-engine';
 import { updatePayrollAdjustment } from '@/app/actions/payroll';
-import PDFExportButton from './PDFExportButton';
 
 type Props = {
     staffList: Staff[];
@@ -181,14 +180,6 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                                     >
                                         Edit
                                     </button>
-                                    <div className="mt-2">
-                                        <PDFExportButton
-                                            data={row}
-                                            year={year}
-                                            month={month}
-                                            fileName={`Payslip_${year}_${month}_${row.staff.name}.pdf`}
-                                        />
-                                    </div>
                                 </td>
                             </tr>
                         ))}
