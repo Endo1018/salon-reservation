@@ -38,7 +38,7 @@ export default function StaffList({ staffList }: { staffList: Staff[] }) {
                             <th className="p-4">ID</th>
                             <th className="p-4">Name</th>
                             <th className="p-4">Role</th>
-                            <th className="p-4">Wage Info (v2)</th>
+                            <th className="p-4">Wage Structure</th>
                             <th className="p-4">Status</th>
                             <th className="p-4">Action</th>
                         </tr>
