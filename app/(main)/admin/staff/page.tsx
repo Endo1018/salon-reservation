@@ -2,6 +2,8 @@ import prisma from '@/lib/db';
 import { createStaff } from '@/app/actions/staff';
 import StaffList from './StaffList';
 
+export const dynamic = 'force-dynamic';
+
 type Props = {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
