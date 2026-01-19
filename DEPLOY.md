@@ -8,7 +8,8 @@ Your application is now ready for the cloud! Follow these steps to publish it.
 3.  Run the following commands in your terminal (`webapp` folder):
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/spa-attendance-app.git
+# Repository: https://github.com/Endo1018/salon-reservation.git
+git remote add origin https://github.com/Endo1018/salon-reservation.git
 git branch -M main
 git push -u origin main
 ```
