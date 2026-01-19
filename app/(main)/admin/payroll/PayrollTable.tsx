@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { calculateStaffPayroll, formatCurrencyVND } from '@/lib/payroll-engine';
 import { updatePayrollAdjustment } from '@/app/actions/payroll';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { PayslipDocument } from './PayslipPDF';
+import PDFExportButton from './PDFExportButton';
 
 type Props = {
     staffList: Staff[];
@@ -183,15 +182,12 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                                         Edit
                                     </button>
                                     <div className="mt-2">
-                                        <PDFDownloadLink
-                                            document={<PayslipDocument data={row} year={year} month={month} />}
+                                        <PDFExportButton
+                                            data={row}
+                                            year={year}
+                                            month={month}
                                             fileName={`Payslip_${year}_${month}_${row.staff.name}.pdf`}
-                                            className="text-[10px] bg-slate-800 border border-slate-600 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded inline-block"
-                                        >
-                                            {({ blob, url, loading, error }) =>
-                                                loading ? 'Loading...' : 'Export PDF'
-                                            }
-                                        </PDFDownloadLink>
+                                        />
                                     </div>
                                 </td>
                             </tr>
