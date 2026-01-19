@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { calculateStaffPayroll, formatCurrencyVND } from '@/lib/payroll-engine';
 import { updatePayrollAdjustment } from '@/app/actions/payroll';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { PayslipDocument } from './PayslipPDF';
 
 type Props = {
     staffList: Staff[];
@@ -176,10 +178,21 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                                 <td className="px-4 py-3 text-right">
                                     <button
                                         onClick={() => setEditingStaffId(row.staff.id)}
-                                        className="text-xs bg-slate-700 hover:bg- slate-600 text-slate-300 px-2 py-1 rounded"
+                                        className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded"
                                     >
                                         Edit
                                     </button>
+                                    <div className="mt-2">
+                                        <PDFDownloadLink
+                                            document={<PayslipDocument data={row} year={year} month={month} />}
+                                            fileName={`Payslip_${year}_${month}_${row.staff.name}.pdf`}
+                                            className="text-[10px] bg-slate-800 border border-slate-600 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded inline-block"
+                                        >
+                                            {({ blob, url, loading, error }) =>
+                                                loading ? 'Loading...' : 'Export PDF'
+                                            }
+                                        </PDFDownloadLink>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -187,21 +200,23 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                 </table>
             </div>
 
-            {editingStaffId && (
-                <AdjustmentModal
-                    staffId={editingStaffId}
-                    staff={staffList.find(s => s.id === editingStaffId)!}
-                    year={year}
-                    month={month}
-                    initialData={adjustments.find(a => a.staffId === editingStaffId)}
-                    onClose={() => setEditingStaffId(null)}
-                />
-            )}
+            {
+                editingStaffId && (
+                    <AdjustmentModal
+                        staffId={editingStaffId}
+                        staff={staffList.find(s => s.id === editingStaffId)!}
+                        year={year}
+                        month={month}
+                        initialData={adjustments.find(a => a.staffId === editingStaffId)}
+                        onClose={() => setEditingStaffId(null)}
+                    />
+                )
+            }
 
             <div className="bg-slate-800/50 p-4 rounded text-xs text-slate-500">
                 <p><strong>Note:</strong> "Holiday Work" adds 300% on top of Base Pay. "OT" adds 150%. Insurance/PIT calculated on Gross.</p>
             </div>
-        </div>
+        </div >
     );
 }
 
