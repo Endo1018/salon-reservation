@@ -14,7 +14,7 @@ export default function Sidebar() {
         { name: 'Shifts', href: '/admin/shifts', icon: 'calendar' },
         { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
         { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
-        { name: 'Timeline', href: '/admin/timeline', icon: 'book' },
+        { name: 'Timeline', href: '/admin/timeline', icon: 'book' }, // Updated
     ];
 
     const staffMenu = [
