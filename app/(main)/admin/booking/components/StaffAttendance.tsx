@@ -9,7 +9,7 @@ import { StaffManagementDialog } from './StaffManagementDialog';
 
 export function StaffAttendance() {
     const staff = useMetaStore(state => state.staff);
-    const { availableStaff, toggleStaffAvailability } = useReservationStore();
+    const { availableStaff, toggleStaffAvailability, shiftStatus } = useReservationStore();
     const [isManageOpen, setIsManageOpen] = useState(false);
 
     return (
@@ -18,6 +18,9 @@ export function StaffAttendance() {
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Staff Attendance:</span>
                 {staff.map(sId => {
                     const isAvailable = availableStaff.includes(sId);
+                    const status = shiftStatus[sId]; // 'OFF' or 'WORK' or undefined
+                    const isOff = status === 'OFF';
+
                     return (
                         <button
                             key={sId}
@@ -26,10 +29,16 @@ export function StaffAttendance() {
                                 "px-3 py-1 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 shadow-sm",
                                 isAvailable
                                     ? getStaffColor(sId)
-                                    : "bg-gray-100 text-gray-400 border-gray-200 opacity-40 grayscale-[0.5]"
+                                    : "bg-gray-100 text-gray-400 border-gray-200 opacity-40 grayscale-[0.5]",
+                                isOff && "opacity-30 cursor-not-allowed ring-1 ring-red-200" // Dim heavily if OFF
                             )}
+                            disabled={isOff} // Disable interaction if OFF
+                            title={isOff ? "Shift: OFF" : "Available"}
                         >
-                            <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", isAvailable ? "bg-green-500 animate-pulse" : "bg-gray-400")} />
+                            <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50",
+                                isAvailable ? "bg-green-500 animate-pulse" : "bg-gray-400",
+                                isOff && "bg-red-400"
+                            )} />
                             {sId}
                         </button>
                     );

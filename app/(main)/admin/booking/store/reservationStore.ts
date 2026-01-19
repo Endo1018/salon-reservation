@@ -19,7 +19,9 @@ interface ReservationState {
     setSelectedDate: (date: Date) => void;
     clearReservationsForDate: (date: Date) => Promise<void>;
     // Staff Availability
+    // Staff Availability
     availableStaff: string[];
+    shiftStatus: Record<string, string>; // 'OFF', 'WORK', etc.
     toggleStaffAvailability: (staffId: string) => Promise<void>;
     setStaffAvailability: (staffIds: string[]) => void;
     fetchAvailability: (date: Date) => Promise<void>;
@@ -43,6 +45,7 @@ interface ReservationState {
 export const useReservationStore = create<ReservationState>((set, get) => ({
     reservations: [],
     selectedDate: new Date(),
+    shiftStatus: {},
 
     setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -203,24 +206,26 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
     },
 
     fetchAvailability: async (date: Date) => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const { data: availData, error: availError } = await supabase
-            .from('staff_availability')
-            .select('staff_id, is_available')
-            .eq('date', dateStr);
+        // Fetch Shifts from DB (Server Action)
+        const { getStaffShifts } = await import('@/app/actions/booking');
+        const { shiftMap } = await getStaffShifts(date);
 
-        if (availError) {
-            console.error('Supabase availability fetch error:', availError);
-        } else if (availData) {
-            const absentStaff = availData.filter((r: any) => !r.is_available).map((r: any) => r.staff_id);
-            const { staff } = useMetaStore.getState();
-            const presentStaff = staff.filter((id) => !absentStaff.includes(id));
-            set({ availableStaff: presentStaff });
-        } else {
-            // Default to all staff available if no records
-            const { staff } = useMetaStore.getState();
-            set({ availableStaff: staff });
-        }
+        set({ shiftStatus: shiftMap });
+
+        // Default availability: Everyone who is NOT 'OFF'
+        const { staff } = useMetaStore.getState();
+
+        // If we want to persist manual toggles, we'd merge with `staff_availability` table.
+        // For now, let's trust Shift status as primary. 
+        // If Shift is OFF, they are unavailable.
+        // If Shift is WORK (or undefined/null), they are available.
+
+        const available = staff.filter(name => {
+            const status = shiftMap[name];
+            return status !== 'OFF';
+        });
+
+        set({ availableStaff: available });
     },
 
     validateReservation: (menu: Menu, startAt: string, staffId: string, forcedResourceId?: ResourceId) => {
