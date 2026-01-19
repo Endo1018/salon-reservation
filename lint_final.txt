@@ -1,0 +1,56 @@
+
+> webapp@0.1.0 lint
+> eslint
+
+(node:50777) ESLintIgnoreWarning: The ".eslintignore" file is no longer supported. Switch to using the "ignores" property in "eslint.config.js": https://eslint.org/docs/latest/use/configure/migration-guide#ignoring-files
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/BookingDialog.tsx
+   7:10  warning  'Menu' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+   7:28  warning  'ResourceCategory' is defined but never used                                                           @typescript-eslint/no-unused-vars
+   9:37  warning  'getResourceCategoryForMenu' is defined but never used                                                 @typescript-eslint/no-unused-vars
+  10:13  warning  'Plus' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+  10:19  warning  'Trash2' is defined but never used                                                                     @typescript-eslint/no-unused-vars
+  28:29  warning  'validateReservation' is assigned a value but never used                                               @typescript-eslint/no-unused-vars
+  87:9   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/EditReservationDialog.tsx
+  5:10  warning  'Reservation' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/GanttChart.tsx
+    4:21  warning  'Resource' is defined but never used       @typescript-eslint/no-unused-vars
+    5:10  warning  'STAFF_COLORS' is defined but never used   @typescript-eslint/no-unused-vars
+    8:14  warning  'isOverlapping' is defined but never used  @typescript-eslint/no-unused-vars
+    9:18  warning  'addMinutes' is defined but never used     @typescript-eslint/no-unused-vars
+    9:40  warning  'startOfDay' is defined but never used     @typescript-eslint/no-unused-vars
+    9:52  warning  'addHours' is defined but never used       @typescript-eslint/no-unused-vars
+  280:62  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/lib/data.ts
+  3:16  warning  'Staff' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/lib/utils.ts
+  4:10  warning  'parseISO' is defined but never used    @typescript-eslint/no-unused-vars
+  4:20  warning  'format' is defined but never used      @typescript-eslint/no-unused-vars
+  4:28  warning  'addMinutes' is defined but never used  @typescript-eslint/no-unused-vars
+  4:40  warning  'isBefore' is defined but never used    @typescript-eslint/no-unused-vars
+  4:50  warning  'isAfter' is defined but never used     @typescript-eslint/no-unused-vars
+  4:59  warning  'isEqual' is defined but never used     @typescript-eslint/no-unused-vars
+  5:16  warning  'Resource' is defined but never used    @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/store/metaStore.ts
+  16:53  warning  'get' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/store/reservationStore.ts
+   4:10  warning  'STAFF_LIST' is defined but never used     @typescript-eslint/no-unused-vars
+  52:17  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/actions/import-excel.ts
+  303:17  warning  'staffHasUpdate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/lib/payroll-engine.ts
+  246:11  warning  'adjInc' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 28 problems (1 error, 27 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

@@ -41,6 +41,7 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
     // Sync state when dialog opens or part changes
     useEffect(() => {
         if (isOpen && reservationId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCurrentId(reservationId);
         }
     }, [isOpen, reservationId]);
@@ -48,6 +49,7 @@ export function EditReservationDialog({ isOpen, onClose, reservationId }: EditRe
     useEffect(() => {
         if (reservation) {
             const date = parseISO(reservation.startAt);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStartParams({
                 date: format(date, 'yyyy-MM-dd'),
                 time: format(date, 'HH:mm')

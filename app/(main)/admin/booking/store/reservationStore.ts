@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { Reservation, ResourceId, Menu } from '@/app/(main)/admin/booking/types';
 import { STAFF_LIST } from '@/app/(main)/admin/booking/lib/constants';

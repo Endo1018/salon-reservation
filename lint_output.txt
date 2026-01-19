@@ -1,0 +1,142 @@
+
+> webapp@0.1.0 lint
+> eslint
+
+(node:50289) ESLintIgnoreWarning: The ".eslintignore" file is no longer supported. Switch to using the "ignores" property in "eslint.config.js": https://eslint.org/docs/latest/use/configure/migration-guide#ignoring-files
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/attendance/table.tsx
+  94:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/attendance/table.tsx:94:9
+  92 |         // Only auto-update if the user hasn't typed a custom value that wildly differs?
+  93 |         // No, simpler to just always update on dependency change. User overrides LAST.
+> 94 |         setNewWorkHours(calculatedHours.toFixed(2));
+     |         ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  95 |
+  96 |     }, [newStart, newEnd, newBreakTime, newIsOvertime, editingId]); // Run when inputs change
+  97 |  react-hooks/set-state-in-effect
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/BookingDialog.tsx
+   6:10  warning  'Menu' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   6:28  warning  'ResourceCategory' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   8:37  warning  'getResourceCategoryForMenu' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+   9:13  warning  'Plus' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   9:19  warning  'Trash2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  27:29  warning  'validateReservation' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  43:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/BookingDialog.tsx:43:13
+  41 |         if (isOpen && initialStartTime) {
+  42 |             const date = parseISO(initialStartTime);
+> 43 |             setStartHourStr(format(date, 'HH:mm'));
+     |             ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  44 |
+  45 |             // Auto-add first treatment based on initial resource if possible
+  46 |             // But we don't know duration. Just add a default placeholder?   react-hooks/set-state-in-effect
+  85:36  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/EditReservationDialog.tsx
+   5:10  warning  'Reservation' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  44:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/EditReservationDialog.tsx:44:13
+  42 |     useEffect(() => {
+  43 |         if (isOpen && reservationId) {
+> 44 |             setCurrentId(reservationId);
+     |             ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  45 |         }
+  46 |     }, [isOpen, reservationId]);
+  47 |                                                                                 react-hooks/set-state-in-effect
+  51:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/EditReservationDialog.tsx:51:13
+  49 |         if (reservation) {
+  50 |             const date = parseISO(reservation.startAt);
+> 51 |             setStartParams({
+     |             ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  52 |                 date: format(date, 'yyyy-MM-dd'),
+  53 |                 time: format(date, 'HH:mm')
+  54 |             });  react-hooks/set-state-in-effect
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/GanttChart.tsx
+    4:21  warning  'Resource' is defined but never used       @typescript-eslint/no-unused-vars
+    5:10  warning  'STAFF_COLORS' is defined but never used   @typescript-eslint/no-unused-vars
+    8:14  warning  'isOverlapping' is defined but never used  @typescript-eslint/no-unused-vars
+    9:18  warning  'addMinutes' is defined but never used     @typescript-eslint/no-unused-vars
+    9:40  warning  'startOfDay' is defined but never used     @typescript-eslint/no-unused-vars
+    9:52  warning  'addHours' is defined but never used       @typescript-eslint/no-unused-vars
+  280:62  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/components/StaffManagementDialog.tsx
+  27:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/lib/data.ts
+   2:16  warning  'Staff' is defined but never used         @typescript-eslint/no-unused-vars
+  77:24  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/lib/utils.ts
+   3:10  warning  'parseISO' is defined but never used      @typescript-eslint/no-unused-vars
+   3:20  warning  'format' is defined but never used        @typescript-eslint/no-unused-vars
+   3:28  warning  'addMinutes' is defined but never used    @typescript-eslint/no-unused-vars
+   3:40  warning  'isBefore' is defined but never used      @typescript-eslint/no-unused-vars
+   3:50  warning  'isAfter' is defined but never used       @typescript-eslint/no-unused-vars
+   3:59  warning  'isEqual' is defined but never used       @typescript-eslint/no-unused-vars
+   4:16  warning  'Resource' is defined but never used      @typescript-eslint/no-unused-vars
+  48:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/store/metaStore.ts
+  16:53  warning  'get' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/booking/store/reservationStore.ts
+    3:10  warning  'STAFF_LIST' is defined but never used     @typescript-eslint/no-unused-vars
+   51:17  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   84:26  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  169:44  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  196:54  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  196:87  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  214:54  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  214:87  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/payroll/PayrollTable.tsx
+  204:43  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  204:56  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  204:88  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  204:91  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/actions/import-excel.ts
+  303:17  warning  'staffHasUpdate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/takahisaendo/Desktop/勤怠/webapp/check_wage.js
+  2:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/takahisaendo/Desktop/勤怠/webapp/lib/payroll-engine.ts
+  246:11  warning  'adjInc' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 47 problems (21 errors, 26 warnings)
+

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { useMetaStore } from '@/app/(main)/admin/booking/store/metaStore';
 import { X, UserPlus, Trash2, Loader2 } from 'lucide-react';

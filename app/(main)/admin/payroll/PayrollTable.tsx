@@ -187,6 +187,7 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                 </table>
             </div>
 
+
             {
                 editingStaffId && (
                     <AdjustmentModal
@@ -201,7 +202,7 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
             }
 
             <div className="bg-slate-800/50 p-4 rounded text-xs text-slate-500">
-                <p><strong>Note:</strong> "Holiday Work" adds 300% on top of Base Pay. "OT" adds 150%. Insurance/PIT calculated on Gross.</p>
+                <p><strong>Note:</strong> &quot;Holiday Work&quot; adds 300% on top of Base Pay. &quot;OT&quot; adds 150%. Insurance/PIT calculated on Gross.</p>
             </div>
         </div >
     );

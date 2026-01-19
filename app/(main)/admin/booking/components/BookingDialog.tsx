@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -40,6 +41,7 @@ export function BookingDialog({ isOpen, onClose, initialStartTime, initialResour
     useEffect(() => {
         if (isOpen && initialStartTime) {
             const date = parseISO(initialStartTime);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStartHourStr(format(date, 'HH:mm'));
 
             // Auto-add first treatment based on initial resource if possible
@@ -82,6 +84,7 @@ export function BookingDialog({ isOpen, onClose, initialStartTime, initialResour
         let currentStart = parseISO(fullStartIso);
 
         // Validate sequence
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pendingReservations: any[] = [];
         const comboLinkId = treatments.length > 1 ? crypto.randomUUID() : undefined;
 

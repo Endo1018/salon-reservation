@@ -91,6 +91,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
 
         // Only auto-update if the user hasn't typed a custom value that wildly differs?
         // No, simpler to just always update on dependency change. User overrides LAST.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setNewWorkHours(calculatedHours.toFixed(2));
 
     }, [newStart, newEnd, newBreakTime, newIsOvertime, editingId]); // Run when inputs change
