@@ -57,22 +57,15 @@ export function StaffAttendance() {
                         </button>
                     );
                 })}
-                <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50",
-                    isAvailable ? "bg-green-500 animate-pulse" : "bg-gray-400",
-                    isOff && "bg-red-400"
-                )} />
-                {sId}
-            </button>
-            );
-                })}
-            <button
-                onClick={() => setIsManageOpen(true)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90 ml-1"
-                title="Manage Staff"
-            >
-                <Settings className="w-4 h-4" />
-            </button>
-        </div >
+
+                <button
+                    onClick={() => setIsManageOpen(true)}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90 ml-1"
+                    title="Manage Staff"
+                >
+                    <Settings className="w-4 h-4" />
+                </button>
+            </div >
 
             <StaffManagementDialog
                 isOpen={isManageOpen}
