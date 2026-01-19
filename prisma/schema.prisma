@@ -112,9 +112,9 @@ model Service {
   duration     Int
   price        Int
   type         String   // Single, Combo
-  category     String
+  category     String   // Massage Seat, Head Spa, Aroma Room
   description  String?
-  allowedStaff String[] // Array of staff IDs or names stored as JSON/String[]
+  allowedStaff String[] // Array of staff IDs or names
   
   bookings     Booking[]
 }
@@ -126,10 +126,12 @@ model Booking {
   staffId     String
   startAt     DateTime
   endAt       DateTime
-  resourceId  String
-  status      String   // Hold, Confirmed, etc.
+  resourceId  String   // Seat or Room ID
+  status      String   // Hold, Confirmed, Cancelled
   clientName  String?
-  comboLinkId String?
+  
+  // Combo fields
+  comboLinkId String?  // ID required to link multiple bookings
   isComboMain Boolean  @default(false)
   
   service     Service? @relation(fields: [menuId], references: [id])
