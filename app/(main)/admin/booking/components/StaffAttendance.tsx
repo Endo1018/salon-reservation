@@ -18,7 +18,15 @@ export function StaffAttendance() {
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Staff Attendance:</span>
                 {staff.map(sId => {
                     const isAvailable = availableStaff.includes(sId);
-                    const status = shiftStatus[sId]; // 'OFF' or 'WORK' or undefined
+
+                    // Case-insensitive lookup for Shift Status
+                    // Try exact match, then uppercase, then find by lowercase comparison
+                    let status = shiftStatus[sId];
+                    if (!status) {
+                        const key = Object.keys(shiftStatus).find(k => k.toLowerCase() === sId.toLowerCase());
+                        if (key) status = shiftStatus[key];
+                    }
+
                     const isOff = status === 'OFF';
 
                     return (
@@ -30,10 +38,10 @@ export function StaffAttendance() {
                                 isAvailable
                                     ? getStaffColor(sId)
                                     : "bg-gray-100 text-gray-400 border-gray-200 opacity-40 grayscale-[0.5]",
-                                isOff && "opacity-30 cursor-not-allowed ring-1 ring-red-200" // Dim heavily if OFF
+                                isOff && "opacity-30 cursor-not-allowed ring-1 ring-red-200 grayscale" // Dim and grayscale if OFF
                             )}
-                            disabled={isOff} // Disable interaction if OFF
-                            title={isOff ? "Shift: OFF" : "Available"}
+                            disabled={isOff}
+                            title={isOff ? `Shift check: OFF (${sId})` : "Available"}
                         >
                             <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50",
                                 isAvailable ? "bg-green-500 animate-pulse" : "bg-gray-400",
