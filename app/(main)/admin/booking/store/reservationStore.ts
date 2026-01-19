@@ -208,7 +208,9 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
     fetchAvailability: async (date: Date) => {
         // Fetch Shifts from DB (Server Action)
         const { getStaffShifts } = await import('@/app/actions/booking');
-        const { shiftMap } = await getStaffShifts(date);
+        // Pass YYYY-MM-DD string to avoid timezone ambiguity
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const { shiftMap } = await getStaffShifts(dateStr);
 
         set({ shiftStatus: shiftMap });
 

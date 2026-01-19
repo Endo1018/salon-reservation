@@ -3,9 +3,20 @@
 import { prisma } from '@/lib/db';
 import { startOfDay, endOfDay } from 'date-fns';
 
-export async function getStaffShifts(date: Date) {
-    const start = startOfDay(date);
-    const end = endOfDay(date);
+export async function getStaffShifts(dateInput: Date | string) {
+    // Ensure we work with a string 'YYYY-MM-DD' to avoid timezone shifts on the server
+    const dateStr = typeof dateInput === 'string'
+        ? dateInput
+        : dateInput.toISOString().split('T')[0];
+
+    // Construct start/end from the string explicitly in UTC or local?
+    // Prisma matches DateTime. 
+    // IF shifts are stored as "Midnight UTC" (common for date-only fields without time type), 
+    // we should query for the range of that day in UTC.
+
+    // Assuming 'dateStr' is '2026-01-19'
+    const start = new Date(`${dateStr}T00:00:00.000Z`);
+    const end = new Date(`${dateStr}T23:59:59.999Z`);
 
     // Fetch all active staff
     const staffList = await prisma.staff.findMany({

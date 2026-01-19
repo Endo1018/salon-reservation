@@ -10,7 +10,9 @@ import { ClearAllButton } from '@/app/(main)/admin/booking/components/ClearAllBu
 export default async function Home() {
   const { menus } = await loadMenuData(); // Ignore allStaff from CSV
   const { getStaffShifts } = await import('@/app/actions/booking');
-  const { staffNames } = await getStaffShifts(new Date());
+  // Use today's date formatted
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { staffNames } = await getStaffShifts(todayStr);
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-slate-200 p-6">
