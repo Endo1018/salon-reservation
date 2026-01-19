@@ -206,28 +206,39 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
     },
 
     fetchAvailability: async (date: Date) => {
-        // Fetch Shifts from DB (Server Action)
+        // 1. Fetch Shifts from DB (Server Action)
         const { getStaffShifts } = await import('@/app/actions/booking');
-        // Pass YYYY-MM-DD string to avoid timezone ambiguity
         const dateStr = format(date, 'yyyy-MM-dd');
+        // shiftMap: { "JEN": "OFF", "SAM": "WORK", ... }
         const { shiftMap } = await getStaffShifts(dateStr);
 
         set({ shiftStatus: shiftMap });
 
-        // Default availability: Everyone who is NOT 'OFF'
+        // 2. Determine Initial Availability based strictly on Shifts
+        // If Shift is OFF or AL, they are NOT available.
+        // If Shift is WORK, or Missing (default), they ARE available.
         const { staff } = useMetaStore.getState();
 
-        // If we want to persist manual toggles, we'd merge with `staff_availability` table.
-        // For now, let's trust Shift status as primary. 
-        // If Shift is OFF, they are unavailable.
-        // If Shift is WORK (or undefined/null), they are available.
+        // Robust Case-Insensitive Check Helper
+        const getStatus = (name: string) => {
+            let status = shiftMap[name];
+            if (!status) {
+                // Try case-insensitive key search
+                const key = Object.keys(shiftMap).find(k => k.toLowerCase() === name.toLowerCase());
+                if (key) status = shiftMap[key];
+            }
+            return status;
+        };
 
-        const available = staff.filter(name => {
-            const status = shiftMap[name];
-            return status !== 'OFF';
+        const autoAvailable = staff.filter(name => {
+            const status = getStatus(name);
+            // Treat 'OFF', 'AL', 'ABSENT' as unavailable
+            if (status === 'OFF' || status === 'AL' || status === 'Holiday') return false;
+            return true; // Default to Available
         });
 
-        set({ availableStaff: available });
+        // 3. Set Store
+        set({ availableStaff: autoAvailable });
     },
 
     validateReservation: (menu: Menu, startAt: string, staffId: string, forcedResourceId?: ResourceId) => {
