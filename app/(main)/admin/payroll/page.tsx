@@ -45,6 +45,9 @@ export default async function PayrollPage({ searchParams }: { searchParams: { ye
         }
     });
 
+    const { getMonthlyStaffSummary } = await import('@/app/actions/timeline');
+    const timelineSummary = await getMonthlyStaffSummary(year, month);
+
     return (
         <div className="h-full flex flex-col p-6 overflow-hidden">
             <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -59,6 +62,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: { ye
                     adjustments={adjustments}
                     year={year}
                     month={month}
+                    timelineSummary={timelineSummary}
                 />
             </div>
         </div>

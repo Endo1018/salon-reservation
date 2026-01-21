@@ -33,33 +33,77 @@ export default function Sidebar() {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 py-6 px-3 space-y-2">
-                {menu.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
-                ${isActive
-                                    ? 'bg-[var(--primary)] text-slate-900 shadow-lg shadow-[var(--primary)]/20'
-                                    : 'hover:bg-slate-800 hover:text-white'
-                                }`}
-                        >
-                            {/* Simple Icon Placeholder */}
-                            <span className={`material-icons-outlined text-lg ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
-                                {item.icon === 'home' && '⌂'}
-                                {item.icon === 'users' && '☺'}
-                                {item.icon === 'calendar' && '▦'}
-                                {item.icon === 'clock' && '◔'}
-                                {item.icon === 'money' && '$'}
-                                {item.icon === 'book' && '📖'}
-                                {item.icon === 'user' && '☃'}
-                            </span>
-                            {item.name}
-                        </Link>
-                    );
-                })}
+            <nav className="flex-1 py-6 px-3 space-y-6">
+                {/* Priority Menu (Timeline) */}
+                <div className="space-y-2">
+                    {[{ name: 'Timeline', href: '/admin/timeline', icon: 'book' }].map((item) => {
+                        const isActive = pathname.startsWith(item.href); // Flexible match for subpages
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
+                                ${isActive
+                                        ? 'bg-[var(--primary)] text-slate-900 shadow-lg shadow-[var(--primary)]/20'
+                                        : 'hover:bg-slate-800 hover:text-white'
+                                    }`}
+                            >
+                                <span className={`material-icons-outlined text-lg ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                                    📖
+                                </span>
+                                {item.name}
+                            </Link>
+                        );
+                    })}
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-slate-800 mx-2"></div>
+
+                {/* General Menu */}
+                <div className="space-y-2">
+                    {(isAdmin ? [
+                        { name: 'Dashboard', href: '/admin', icon: 'home' },
+                        { name: 'Staff', href: '/admin/staff', icon: 'users' },
+                        { name: 'Shifts', href: '/admin/shifts', icon: 'calendar' },
+                        { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
+                        { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
+                    ] : staffMenu).map((item) => {
+                        const isActive = pathname === item.href && item.href !== '/admin/timeline'; // Strict match for others, exclude timeline if logic overlaps
+                        // Actually, Dashboard is /admin, so exact match prevents highlighting on subpages usually.
+                        // But original code used ===. I'll stick to === for general items.
+                        // except Dashboard /admin might match /admin/timeline if startsWith used.
+
+                        // Original Logic: const isActive = pathname === item.href;
+                        // But /admin dashboard should check === '/admin' exactly.
+
+                        const isItemActive = pathname === item.href;
+
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
+                    ${isItemActive
+                                        ? 'bg-[var(--primary)] text-slate-900 shadow-lg shadow-[var(--primary)]/20'
+                                        : 'hover:bg-slate-800 hover:text-white'
+                                    }`}
+                            >
+                                {/* Simple Icon Placeholder */}
+                                <span className={`material-icons-outlined text-lg ${isItemActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                                    {item.icon === 'home' && '⌂'}
+                                    {item.icon === 'users' && '☺'}
+                                    {item.icon === 'calendar' && '▦'}
+                                    {item.icon === 'clock' && '◔'}
+                                    {item.icon === 'money' && '$'}
+                                    {item.icon === 'book' && '📖'}
+                                    {item.icon === 'user' && '☃'}
+                                </span>
+                                {item.name}
+                            </Link>
+                        );
+                    })}
+                </div>
             </nav>
 
             {/* Footer / User Info */}

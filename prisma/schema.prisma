@@ -113,6 +113,8 @@ model Service {
   price        Int
   commission   Int      @default(0) // Commission amount for staff per service
   type         String   // Single, Combo
+  massageDuration Int   @default(0)
+  headSpaDuration Int   @default(0)
   category     String   // Massage Seat, Head Spa, Aroma Room
   description  String?
   allowedStaff String[] // Array of staff IDs or names
@@ -124,7 +126,7 @@ model Booking {
   id          String   @id @default(uuid())
   menuId      String
   menuName    String
-  staffId     String
+  staffId     String?
   startAt     DateTime
   endAt       DateTime
   resourceId  String   // Seat or Room ID

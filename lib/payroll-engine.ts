@@ -154,7 +154,8 @@ export function calculateStaffPayroll(
         allowanceLanguage: number,
         allowanceOther: number,
         fine: number,
-        taxRefund: number
+        taxRefund: number,
+        timelineCommission?: number
     }
 ) {
     const { dailyRate, hourlyRate } = getRates(staff.baseWage);
@@ -258,6 +259,16 @@ export function calculateStaffPayroll(
 
     const fine = adjustment?.fine || 0;
     const taxRefund = adjustment?.taxRefund || 0; // Positive value added to Net
+
+    const timelineComm = adjustment?.timelineCommission ?? 0;
+
+    // If timelineComm is provided (> 0 or specifically passed), we use it. 
+    // But usually we want it to REPLACE the attendance-based one if we are moving to automated.
+    // However, for safety, I will use whichever is larger or just the timeline one if provided.
+    // Decision: If timelineCommission is passed, use it.
+    if (adjustment && typeof adjustment.timelineCommission === 'number') {
+        commissionTotal = adjustment.timelineCommission;
+    }
 
     commissionTotal += adjComm;
 

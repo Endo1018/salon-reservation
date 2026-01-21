@@ -1,82 +1,50 @@
-'use client';
-
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { Calendar, Users, Briefcase } from 'lucide-react';
+import Link from 'next/link';
+import { getTimelineData } from '@/app/actions/timeline';
+import TimelineGraph from './components/TimelineGraph';
+import DateController from './components/DateController';
+import StaffAttendanceRow from './components/StaffAttendanceRow';
 
-export default function TimelineDashboard() {
-    const pathname = usePathname();
-    const router = useRouter();
+type Props = {
+    searchParams: { date?: string };
+};
 
-    const tabs = [
-        { name: 'Timeline', href: '/admin/timeline', icon: Calendar },
-        { name: 'Services', href: '/admin/timeline/services', icon: Briefcase },
-        { name: 'Customers', href: '/admin/timeline/customers', icon: Users },
-    ];
+export default async function TimelineDashboard(props: Props) {
+    // Await searchParams in Next.js 15+ if needed, but 14 is sync. 
+    // Wait, recent Next.js versions made searchParams async.
+    // Let's safe handle it assuming it might be a Promise in future or just object now.
+    // For Next 14/15 safe interaction:
+    const params = await props.searchParams;
+    const dateStr = params?.date || new Date().toISOString().split('T')[0];
 
-    // Simple Calendar Skeleton (Week View)
-    const hours = Array.from({ length: 13 }, (_, i) => i + 10); // 10:00 - 22:00
-    const dates = ['Mon 1/19', 'Tue 1/20', 'Wed 1/21', 'Thu 1/22', 'Fri 1/23', 'Sat 1/24', 'Sun 1/25'];
+    // Fetch Data
+    const { resources, bookings } = await getTimelineData(dateStr);
 
     return (
-        <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-            {/* Header Tabs */}
-            <div className="border-b border-slate-800 px-6 pt-4 flex gap-6">
-                {tabs.map(tab => {
-                    const isActive = pathname === tab.href || (tab.href !== '/admin/timeline' && pathname.startsWith(tab.href));
-                    const Icon = tab.icon;
-                    return (
-                        <Link key={tab.name} href={tab.href} className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-bold transition-colors ${isActive ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-slate-500 hover:text-slate-300'
-                            }`}>
-                            <Icon className="w-4 h-4" />
-                            {tab.name}
-                        </Link>
-                    );
-                })}
+        <div className="h-full flex flex-col">
+            {/* Top Bar */}
+            <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-950">
+                <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold flex items-center gap-2 text-slate-100">
+                        Relaxation Salon Reservation
+                    </h2>
+                    <DateController date={dateStr} />
+                </div>
+                <div className="flex gap-2">
+                    {/* Placeholder for future actions */}
+                </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 p-6 overflow-hidden flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <span className="text-[var(--primary)]">●</span> 2026 January (Timeline View)
-                    </h2>
-                    <div className="flex gap-2">
-                        <button className="px-3 py-1 bg-slate-800 rounded hover:bg-slate-700 text-xs">Today</button>
-                        <button className="px-3 py-1 bg-slate-800 rounded hover:bg-slate-700 text-xs">Month</button>
-                        <button className="px-3 py-1 bg-[var(--primary)] text-slate-900 font-bold rounded text-xs">Week</button>
-                    </div>
-                </div>
+            {/* Staff Row */}
+            <StaffAttendanceRow date={dateStr} />
 
-                {/* Calendar Grid Skeleton */}
-                <div className="flex-1 border border-slate-800 rounded-lg overflow-auto bg-slate-900/50">
-                    <div className="grid grid-cols-8 divide-x divide-slate-800 min-w-[800px]">
-                        {/* Time Col */}
-                        <div className="bg-slate-900/80 sticky left-0">
-                            <div className="h-10 border-b border-slate-800"></div>
-                            {hours.map(h => (
-                                <div key={h} className="h-20 border-b border-slate-800 text-xs text-slate-500 flex items-start justify-center pt-2">
-                                    {h}:00
-                                </div>
-                            ))}
-                        </div>
-                        {/* Days */}
-                        {dates.map((d, i) => (
-                            <div key={i} className="flex-1 min-w-[120px]">
-                                <div className="h-10 border-b border-slate-800 bg-slate-900/80 text-center text-sm font-bold py-2 text-slate-300 sticky top-0">
-                                    {d}
-                                </div>
-                                {hours.map(h => (
-                                    <div key={h} className="h-20 border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer relative group transition-colors">
-                                        <div className="hidden group-hover:flex absolute inset-0 items-center justify-center">
-                                            <span className="text-[var(--primary)] opacity-50 text-2xl">+</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            {/* Main Graph Area */}
+            <div className="flex-1 overflow-hidden p-4 flex flex-col">
+                <TimelineGraph
+                    date={dateStr}
+                    resources={resources}
+                    initialBookings={bookings}
+                />
             </div>
         </div>
     );

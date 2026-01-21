@@ -14,9 +14,10 @@ type Props = {
     adjustments: PayrollAdjustment[];
     year: number;
     month: number;
+    timelineSummary: any[];
 };
 
-export default function PayrollTable({ staffList, attendance, shifts, adjustments, year, month }: Props) {
+export default function PayrollTable({ staffList, attendance, shifts, adjustments, year, month, timelineSummary }: Props) {
     const router = useRouter();
     const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
 
@@ -38,8 +39,26 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
         const staffAttendance = attendance.filter(a => a.staffId === staff.id);
         const filteredShifts = shifts.filter(s => s.staffId === staff.id);
         const adjustment = adjustments.find(a => a.staffId === staff.id);
+        const staffSummary = timelineSummary.find(s => s.id === staff.id);
 
-        const result = calculateStaffPayroll(staff, staffAttendance, filteredShifts, year, month, adjustment || undefined);
+        const result = calculateStaffPayroll(staff, staffAttendance, filteredShifts, year, month, {
+            ...(adjustment ? {
+                commission: adjustment.commission,
+                incentive: adjustment.incentive,
+                bonus: adjustment.bonus,
+                deduction: adjustment.deduction,
+                allowancePosition: adjustment.allowancePosition,
+                allowanceCommute: adjustment.allowanceCommute,
+                allowanceCommunication: adjustment.allowanceCommunication,
+                allowanceMeal: adjustment.allowanceMeal,
+                allowanceHousing: adjustment.allowanceHousing,
+                allowanceLanguage: adjustment.allowanceLanguage,
+                allowanceOther: adjustment.allowanceOther,
+                fine: adjustment.fine,
+                taxRefund: adjustment.taxRefund,
+            } : {} as any),
+            timelineCommission: staffSummary?.totalCommission
+        });
         return {
             staff,
             adjustment,

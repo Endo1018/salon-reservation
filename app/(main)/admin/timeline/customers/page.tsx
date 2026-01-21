@@ -33,7 +33,7 @@ export default function CustomersPage() {
     };
 
     return (
-        <div className="p-6 text-slate-100">
+        <div className="p-6 text-slate-100 h-full overflow-auto">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Customers</h1>
                 <button onClick={() => setIsFormOpen(true)} className="px-4 py-2 bg-[var(--primary)] text-slate-900 font-bold rounded hover:opacity-90">

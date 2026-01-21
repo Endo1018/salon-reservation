@@ -111,12 +111,15 @@ export async function clockOut(staffId: string) {
 
     // Simple work hours diff (Decimal hours)
     let workHours = 0;
+    const breakTime = 1.0;
     if (existing.start) {
         const [h1, m1] = existing.start.split(':').map(Number);
         const [h2, m2] = vnTimeStr.split(':').map(Number);
         const startMin = h1 * 60 + m1;
         const endMin = h2 * 60 + m2;
-        workHours = Math.max(0, (endMin - startMin) / 60);
+        let diff = (endMin - startMin) / 60;
+        if (diff < 0) diff += 24; // Overnight
+        workHours = Math.max(0, diff - breakTime);
     }
 
     await prisma.attendance.update({
@@ -124,6 +127,7 @@ export async function clockOut(staffId: string) {
         data: {
             end: vnTimeStr,
             workHours: Number(workHours.toFixed(2)),
+            breakTime: breakTime
         },
     });
 

@@ -46,7 +46,7 @@ export default function ServicesPage() {
     };
 
     return (
-        <div className="p-6 text-slate-100">
+        <div className="p-6 text-slate-100 h-full overflow-auto">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Services</h1>
                 <div className="flex gap-2">
@@ -63,21 +63,27 @@ export default function ServicesPage() {
                 <table className="w-full text-sm text-left">
                     <thead className="bg-slate-800 text-slate-400">
                         <tr>
+                            <th className="px-4 py-3">Type</th>
                             <th className="px-4 py-3">Category</th>
                             <th className="px-4 py-3">Name</th>
                             <th className="px-4 py-3">Duration</th>
+                            <th className="px-4 py-3">Body (M/A)</th>
+                            <th className="px-4 py-3">H Time</th>
                             <th className="px-4 py-3">Price (VND)</th>
                             <th className="px-4 py-3">Commission (VND)</th>
                             <th className="px-4 py-3 w-10"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                        {isLoading ? <tr><td colSpan={6} className="p-4 text-center">Loading...</td></tr> :
+                        {isLoading ? <tr><td colSpan={9} className="p-4 text-center">Loading...</td></tr> :
                             services.map(svc => (
                                 <tr key={svc.id} className="hover:bg-slate-800/50">
+                                    <td className="px-4 py-3 text-xs opacity-70">{svc.type}</td>
                                     <td className="px-4 py-3">{svc.category}</td>
                                     <td className="px-4 py-3 font-medium">{svc.name}</td>
                                     <td className="px-4 py-3">{svc.duration} min</td>
+                                    <td className="px-4 py-3">{svc.massageDuration ? `${svc.massageDuration}m` : '-'}</td>
+                                    <td className="px-4 py-3">{svc.headSpaDuration ? `${svc.headSpaDuration}m` : '-'}</td>
                                     <td className="px-4 py-3">{svc.price.toLocaleString()}</td>
                                     <td className="px-4 py-3">
                                         <input
@@ -107,9 +113,10 @@ export default function ServicesPage() {
                                 value={formData.duration} onChange={e => setFormData({ ...formData, duration: parseInt(e.target.value) })} />
                             <select className="w-1/2 bg-slate-800 border-slate-700 rounded p-2"
                                 value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                                <option>Massage Seat</option>
+                                <option>Massage</option>
                                 <option>Head Spa</option>
-                                <option>Aroma Room</option>
+                                <option>Aroma</option>
+                                <option>Combo</option>
                             </select>
                         </div>
                         <input type="number" className="w-full bg-slate-800 border-slate-700 rounded p-2" placeholder="Price (VND)" required
