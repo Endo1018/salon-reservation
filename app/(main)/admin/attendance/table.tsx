@@ -44,6 +44,14 @@ const calculateDuration = (start: string, end: string): number | null => {
 
 import { useEffect } from 'react';
 
+// Helper to format decimal hours to H:MM
+const formatDecimalToTime = (decimalHours: number): string => {
+    const totalMinutes = Math.round(decimalHours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h}:${m.toString().padStart(2, '0')}`;
+};
+
 export default function AttendanceTable({ initialData }: { initialData: Rec[] }) {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [newStart, setNewStart] = useState<string>('');
@@ -188,7 +196,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                         if (p <= 0) return <span className="text-slate-600">-</span>;
                                         return (
                                             <div className="flex items-center gap-2">
-                                                <span className="text-yellow-400 font-mono text-xs">+{p.toFixed(2)}h</span>
+                                                <span className="text-yellow-400 font-mono text-xs">+{formatDecimalToTime(p)}</span>
                                                 <input
                                                     type="checkbox"
                                                     checked={newIsOvertime}
@@ -243,19 +251,19 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                             <td className="p-4">{rec.start || '-'}</td>
                             <td className="p-4">{rec.end || '-'}</td>
                             <td className="p-4 text-slate-400">
-                                {rec.breakTime ? rec.breakTime.toFixed(2) : '1.00'}
+                                {rec.breakTime ? formatDecimalToTime(rec.breakTime) : '1:00'}
                             </td>
                             <td className="p-4">
                                 {rec.overtime > 0 ? (
                                     <span className="text-yellow-400 font-mono text-xs bg-yellow-900/20 px-2 py-1 rounded">
-                                        +{rec.overtime.toFixed(2)}
+                                        +{formatDecimalToTime(rec.overtime)}
                                         {rec.isOvertime ? ' ✅' : ' ⚠️'}
                                     </span>
                                 ) : (
                                     <span className="text-slate-600">-</span>
                                 )}
                             </td>
-                            <td className="p-4 font-mono">{rec.workHours.toFixed(2)} h</td>
+                            <td className="p-4 font-mono">{formatDecimalToTime(rec.workHours)} h</td>
                             <td className="p-4">
                                 {rec.status === 'Error' ? (
                                     <span className="text-red-400 font-bold text-xs bg-red-900/30 px-2 py-1 rounded">ERROR</span>

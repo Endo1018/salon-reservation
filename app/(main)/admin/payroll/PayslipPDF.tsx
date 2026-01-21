@@ -166,7 +166,15 @@ export const PayslipDocument = ({ staff, payroll, year, month }: PayslipProps) =
                         </View>
                         <View style={styles.row}>
                             <Text style={styles.label}>Work Hours (実働時間)</Text>
-                            <Text style={styles.value}>{payroll.totalWorkHours.toFixed(2)} h</Text>
+                            <Text style={styles.value}>
+                                {(() => {
+                                    const decimalHours = payroll.totalWorkHours;
+                                    const totalMinutes = Math.round(decimalHours * 60);
+                                    const h = Math.floor(totalMinutes / 60);
+                                    const m = totalMinutes % 60;
+                                    return `${h}:${m.toString().padStart(2, '0')}`;
+                                })()} h
+                            </Text>
                         </View>
                         <View style={styles.row}>
                             <Text style={styles.label}>Base Wage (基本給)</Text>

@@ -126,6 +126,11 @@ export async function getTimelineData(dateStr: string) {
         { id: 'seat-3', name: 'Massage Seat 3', category: 'MASSAGE SEAT' },
         { id: 'seat-4', name: 'Massage Seat 4', category: 'MASSAGE SEAT' },
         { id: 'seat-5', name: 'Massage Seat 5', category: 'MASSAGE SEAT' },
+
+        // Overflow Resources (Dynamically added for view)
+        { id: 'overflow-spa', name: '⚠️ Overflow Spa', category: 'HEAD SPA' },
+        { id: 'overflow-aroma', name: '⚠️ Overflow Aroma', category: 'AROMA ROOM' },
+        { id: 'overflow-seat', name: '⚠️ Overflow Seat', category: 'MASSAGE SEAT' },
     ];
 
     // 2. Fetch Bookings for the Date

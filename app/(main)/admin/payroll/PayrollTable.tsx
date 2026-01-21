@@ -66,7 +66,13 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
         };
     });
 
-    const fmtHours = (n: number) => n.toFixed(1);
+    // const fmtHours = (n: number) => n.toFixed(1); // Old formatting
+    const fmtHours = (decimalHours: number) => {
+        const totalMinutes = Math.round(decimalHours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return `${h}:${m.toString().padStart(2, '0')}`;
+    };
 
     return (
         <div className="space-y-6">

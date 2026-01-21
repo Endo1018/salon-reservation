@@ -58,13 +58,11 @@ export default async function StaffAttendanceRow({ date }: Props) {
                     const shift = s.shifts[0];
                     const status = shift?.status?.toUpperCase();
                     const isOff = status === 'OFF' || status === 'AL' || status === 'HOLIDAY';
-                    const color = getStaffColor(s.name);
 
-                    if (isOff) return null; // Logic: Don't show absent staff? Or show gray?
-                    // Image shows colored badges. Let's show present staff.
+                    if (isOff) return null; // Logic: Don't show absent staff
 
                     return (
-                        <div key={s.id} className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${color}`}>
+                        <div key={s.id} className="px-3 py-1 rounded-full text-xs font-bold text-slate-200 bg-slate-700 border border-slate-600 shadow-sm">
                             {s.name}
                         </div>
                     );
