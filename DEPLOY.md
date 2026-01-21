@@ -11,7 +11,7 @@ This file serves as the **SINGLE SOURCE OF TRUTH** for all system connections.
 
 ### B. Vercel Project
 *   **Project Name:** `webapp` (connected to `Endo1018/salon-reservation`)
-*   **Project URL:** `https://salon-reservation-three.vercel.app` (or `webapp-mauve-rho.vercel.app`)
+*   **Project URL:** `https://webapp-mauve-rho.vercel.app` (Primary)
 *   **Note:** If deployment is not triggered, check **Settings > Git** to ensure it is connected to `Endo1018/salon-reservation`.
 
 ### C. Database (Neon / PostgreSQL)
