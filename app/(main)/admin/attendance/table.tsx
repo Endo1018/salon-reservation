@@ -281,11 +281,10 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                             <td className="p-4">
                                 {rec.status === 'Error' ? (
                                     <span className="text-red-400 font-bold text-xs bg-red-900/30 px-2 py-1 rounded">ERROR</span>
+                                ) : rec.status === 'Check' ? (
+                                    <span className="text-orange-400 font-bold text-xs bg-orange-900/30 px-2 py-1 rounded">CHECK</span>
                                 ) : (
                                     <span className="text-green-400 font-bold text-xs">OK</span>
-                                )}
-                                {rec.status === 'Check' && (
-                                    <span className="text-orange-400 font-bold text-xs ml-2 bg-orange-900/30 px-2 py-1 rounded">CHECK</span>
                                 )}
                             </td>
                             <td className="p-4 flex items-center gap-2">
