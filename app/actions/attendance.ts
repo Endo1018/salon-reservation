@@ -3,8 +3,8 @@
 import prisma from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
-export async function updateAttendance(id: number, start: string, end: string, workHours: number, breakTime: number, overtime: number, isOvertime: boolean) {
-    console.log(`[updateAttendance] Calling with ID: ${id}, Start: ${start}, End: ${end}, Hours: ${workHours}, Break: ${breakTime}, Overtime: ${overtime}, IsOvertime: ${isOvertime}`);
+export async function updateAttendance(id: number, start: string, end: string, workHours: number, breakTime: number, overtime: number, isOvertime: boolean, status: string = 'Normal') {
+    console.log(`[updateAttendance] Calling with ID: ${id}, Start: ${start}, End: ${end}, Hours: ${workHours}, Break: ${breakTime}, Overtime: ${overtime}, IsOvertime: ${isOvertime}, Status: ${status}`);
     try {
         await prisma.attendance.update({
             where: { id },
@@ -15,7 +15,7 @@ export async function updateAttendance(id: number, start: string, end: string, w
                 breakTime,
                 overtime,
                 isOvertime,
-                status: 'Normal', // Considered fixed
+                status,
             },
         });
         console.log(`[updateAttendance] Success.`);

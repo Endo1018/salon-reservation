@@ -59,6 +59,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
     const [newBreakTime, setNewBreakTime] = useState<string>('1.0');
     const [newIsOvertime, setNewIsOvertime] = useState<boolean>(false);
     const [newWorkHours, setNewWorkHours] = useState<string>('0');
+    const [newIsCheck, setNewIsCheck] = useState<boolean>(false);
 
     // Derived values (calculated on render for simplicity in UI, but passed to Save)
     const [isDeleting, setIsDeleting] = useState(false);
@@ -71,6 +72,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         setNewBreakTime(String(rec.breakTime || 1.0));
         setNewIsOvertime(rec.isOvertime || false);
         setNewWorkHours(String(rec.workHours));
+        setNewIsCheck(rec.status === 'Check');
     };
 
     const stopEditing = () => {
@@ -80,6 +82,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         setNewBreakTime('1.0');
         setNewIsOvertime(false);
         setNewWorkHours('0');
+        setNewIsCheck(false);
     };
 
     // Auto-calculate logic
@@ -123,7 +126,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
             Number(newWorkHours), // Use user input
             Number(newBreakTime),
             Number(finalOvertime.toFixed(2)),
-            newIsOvertime
+            newIsOvertime,
+            newIsCheck ? 'Check' : 'Normal'
         );
         stopEditing();
     };
@@ -218,7 +222,17 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                     />
                                     <span className="ml-1 text-xs text-slate-500">h</span>
                                 </td>
-                                <td className="p-4 text-slate-400">{rec.status}</td>
+                                <td className="p-4">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={newIsCheck}
+                                            onChange={(e) => setNewIsCheck(e.target.checked)}
+                                            className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-[var(--primary)]"
+                                        />
+                                        <span className="text-xs text-white">要確認</span>
+                                    </label>
+                                </td>
                                 <td className="p-4 flex items-center">
                                     <button
                                         onClick={() => handleSave(rec.id)}
@@ -269,6 +283,9 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                     <span className="text-red-400 font-bold text-xs bg-red-900/30 px-2 py-1 rounded">ERROR</span>
                                 ) : (
                                     <span className="text-green-400 font-bold text-xs">OK</span>
+                                )}
+                                {rec.status === 'Check' && (
+                                    <span className="text-orange-400 font-bold text-xs ml-2 bg-orange-900/30 px-2 py-1 rounded">CHECK</span>
                                 )}
                             </td>
                             <td className="p-4 flex items-center gap-2">
