@@ -200,7 +200,12 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
                             </td>
                             <td className="px-4 py-3 text-center">{row.daysInMonth}</td>
                             <td className="px-4 py-3 text-center font-mono">{row.workDays}</td>
-                            <td className="px-4 py-3 text-center font-mono">{row.offCount}</td>
+                            <td className="px-4 py-3 text-center font-mono">
+                                <span className={row.offCount < Math.max(0, row.daysInMonth - 26) ? 'text-red-400 font-bold' : 'text-green-400'}>
+                                    {row.offCount}
+                                </span>
+                                <span className="text-slate-500 text-xs"> / {Math.max(0, row.daysInMonth - 26)}</span>
+                            </td>
                             <td className="px-4 py-3 text-center font-mono text-green-400">{row.alCount}</td>
                             <td className="px-4 py-3 text-center font-mono text-yellow-400">
                                 {row.totalLateMins > 0 ? formatDuration(row.totalLateMins) : '-'}
