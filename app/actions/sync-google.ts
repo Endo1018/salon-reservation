@@ -262,13 +262,19 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
                     const getPool = (svc: Service) => {
                         const nameLower = svc.name.toLowerCase();
+                        if (nameLower.includes('couple') && nameLower.includes('course')) return { pool: resourcePools.aroma, type: 'aroma' }; // Default 1st part to Aroma
                         if (svc.category === 'Aroma' || nameLower.includes('aroma')) return { pool: resourcePools.aroma, type: 'aroma' };
                         if (svc.category === 'Head Spa' || nameLower.includes('head spa')) return { pool: resourcePools.spa, type: 'spa' };
                         return { pool: resourcePools.seat, type: 'seat' };
                     };
 
                     const pool1Info = getPool(service1);
-                    const pool2Info = isCombo && service2 ? getPool(service2) : null;
+                    let pool2Info = isCombo && service2 ? getPool(service2) : null;
+
+                    // Special Rule: Couple Course 2nd part is always Head Spa
+                    if (isCombo && service1.name.toLowerCase().includes('couple') && service2?.name.toLowerCase().includes('couple')) {
+                        pool2Info = { pool: resourcePools.spa, type: 'spa' };
+                    }
                     let useSwappedOrder = false;
                     let resId1: string | null = null;
                     let resId2: string | null = null;
