@@ -77,22 +77,66 @@ export default async function AttendanceManagementPage({
         take: (dateStr || monthStr) ? undefined : 100, // No limit if filtering by date/month
     });
 
+    // Fetch Shifts for calculation
+    // Reuse the 'where' clause but adapted? 
+    // The 'where' usually filters by date range and staffId, which is compatible with Shift.
+    // However, 'where' has "status: { not: 'Off' }" which might differ for Shift.
+    // Let's rely on finding shifts by ID/Date from the fetched attendance list to be precise.
+    const dateList = attendanceData.map(a => a.date);
+    const staffIdList = attendanceData.map(a => a.staffId);
+
+    const shifts = await prisma.shift.findMany({
+        where: {
+            staffId: { in: staffIdList },
+            date: { in: dateList }
+        }
+    });
+
     const staffList = await prisma.staff.findMany({
         orderBy: { id: 'asc' },
         select: { id: true, name: true }
     });
 
+    // Helper for Time Calc
+    const parseTime = (t: string) => {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedData = attendanceData.map((record: any) => ({
-        ...record,
-        date: record.date.toISOString().split('T')[0],
-        staff: {
-            name: record.staff.name
-        },
-        breakTime: record.breakTime || 1.0,
-        overtime: record.overtime || 0,
-        isOvertime: record.isOvertime || false
-    }));
+    const formattedData = attendanceData.map((record: any) => {
+        const shift = shifts.find(s => s.staffId === record.staffId && s.date.toISOString() === record.date.toISOString());
+
+        // Late / Early Calc
+        let lateMins = 0;
+        let earlyMins = 0;
+
+        if (shift && shift.start && shift.end && record.start && record.end) {
+            const sStart = parseTime(shift.start);
+            const aStart = parseTime(record.start);
+            const sEnd = parseTime(shift.end);
+            const aEnd = parseTime(record.end);
+
+            lateMins = Math.max(0, aStart - sStart);
+            earlyMins = Math.max(0, sEnd - aEnd);
+        }
+
+        return {
+            ...record,
+            date: record.date.toISOString().split('T')[0],
+            staff: {
+                name: record.staff.name
+            },
+            breakTime: record.breakTime || 1.0,
+            overtime: record.overtime || 0,
+            isOvertime: record.isOvertime || false,
+            lateMins,
+            earlyMins,
+            shiftStart: shift?.start || null,
+            shiftEnd: shift?.end || null
+        };
+    });
 
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100 p-8">

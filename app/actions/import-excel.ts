@@ -247,6 +247,11 @@ export async function importAttendanceFromExcel(formData: FormData) {
                 });
 
                 if (existing) {
+                    if (existing.isManual) {
+                        // Skip overwriting manually corrected data
+                        continue;
+                    }
+
                     await prisma.attendance.update({
                         where: { id: existing.id },
                         data: {

@@ -3,10 +3,21 @@
 import prisma from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
-export async function updateAttendance(id: number, start: string, end: string, workHours: number, breakTime: number, overtime: number, isOvertime: boolean, status: string = 'Normal') {
-    console.log(`[updateAttendance] Calling with ID: ${id}, Start: ${start}, End: ${end}, Hours: ${workHours}, Break: ${breakTime}, Overtime: ${overtime}, IsOvertime: ${isOvertime}, Status: ${status}`);
+export async function updateAttendance(
+    id: number,
+    start: string,
+    end: string,
+    workHours: number,
+    breakTime: number,
+    overtime: number,
+    isOvertime: boolean,
+    status: string = 'Normal',
+    shiftStart: string | null = null,
+    shiftEnd: string | null = null
+) {
+    console.log(`[updateAttendance] ID: ${id}, AtStart: ${start}, AtEnd: ${end}, ShiftStart: ${shiftStart}, ShiftEnd: ${shiftEnd}`);
     try {
-        await prisma.attendance.update({
+        const att = await prisma.attendance.update({
             where: { id },
             data: {
                 start,
@@ -16,8 +27,43 @@ export async function updateAttendance(id: number, start: string, end: string, w
                 overtime,
                 isOvertime,
                 status,
+                isManual: true,
             },
         });
+
+        // Update linked Shift if provided
+        if (shiftStart && shiftEnd) {
+            // Find shift by staff/date
+            const existingShift = await prisma.shift.findFirst({
+                where: {
+                    staffId: att.staffId,
+                    date: att.date
+                }
+            });
+
+            if (existingShift) {
+                await prisma.shift.update({
+                    where: { id: existingShift.id },
+                    data: {
+                        start: shiftStart,
+                        end: shiftEnd
+                    }
+                });
+            } else {
+                // Should we create one if missing? 
+                // Probably yes, to ensure the Late/Early calculation holds for future.
+                await prisma.shift.create({
+                    data: {
+                        staffId: att.staffId,
+                        date: att.date,
+                        start: shiftStart,
+                        end: shiftEnd,
+                        status: 'Confirmed'
+                    }
+                });
+            }
+        }
+
         console.log(`[updateAttendance] Success.`);
         revalidatePath('/admin/attendance');
     } catch (e) {

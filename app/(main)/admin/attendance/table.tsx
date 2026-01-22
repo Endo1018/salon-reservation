@@ -15,6 +15,10 @@ type Rec = {
     overtime: number;
     isOvertime: boolean;
     status: string;
+    lateMins: number;
+    earlyMins: number;
+    shiftStart: string | null;
+    shiftEnd: string | null;
 };
 
 // Pure function for calculation
@@ -42,6 +46,70 @@ const calculateDuration = (start: string, end: string): number | null => {
     return diff;
 };
 
+// Helper for Rounding Rules
+const applyRounding = (start: string | null, end: string | null) => {
+    let s = start;
+    let e = end;
+
+    if (s) {
+        const [h, m] = s.split(':').map(Number);
+        const mins = h * 60 + m;
+        // Rule: 12:40 - 12:59 -> 13:00
+        if (mins >= 12 * 60 + 40 && mins <= 12 * 60 + 59) {
+            s = '13:00';
+        }
+    }
+
+    if (e) {
+        const [h, m] = e.split(':').map(Number);
+        const mins = h * 60 + m;
+        // Rule: 21:35 - 21:59 -> 22:00
+        if (mins >= 21 * 60 + 35 && mins <= 21 * 60 + 59) {
+            e = '22:00';
+        }
+    }
+    return { start: s, end: e };
+};
+
+// Helper for dynamic Late/Early Calc
+const calcLateEarly = (attStart: string, attEnd: string, shiftStart: string | null, shiftEnd: string | null, breakTime: number = 1.0) => {
+    // 1. Normalize Shift (to avoid 12:47 vs 13:00 issues)
+    if (!attStart || !shiftStart || !attEnd) return { late: 0, early: 0 };
+
+    // Simple parse
+    const parse = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+
+    // We infer Standard Shift from the DB Shift
+    let stdShiftStart = parse(shiftStart);
+    // Snap 12:30-13:15 -> 13:00 (780)
+    if (stdShiftStart >= 750 && stdShiftStart <= 795) stdShiftStart = 780;
+    // Snap 09:30-10:15 -> 10:00 (600)
+    if (stdShiftStart >= 570 && stdShiftStart <= 615) stdShiftStart = 600;
+
+    // 2. Apply Rounding to Attendance
+    const { start: rStart, end: rEnd } = applyRounding(attStart, attEnd);
+    if (!rStart || !rEnd) return { late: 0, early: 0 };
+
+    const effStart = parse(rStart);
+    const effEnd = parse(rEnd);
+
+    // 3. Calc Late
+    // Late if Effective Start > Standard Shift Start
+    const late = Math.max(0, effStart - stdShiftStart);
+
+    // 4. Calc Early
+    // Early if Work Hours < 8.0
+    // Work Hours = EffEnd - EffStart - Break
+    const effDurationMins = (effEnd - effStart) - (breakTime * 60);
+    // Early = 8h - effDuration
+    const early = Math.max(0, (8 * 60) - effDurationMins);
+
+    return { late, early };
+};
+
 import { useEffect } from 'react';
 
 // Helper to format decimal hours to H:MM
@@ -59,6 +127,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
     const [newBreakTime, setNewBreakTime] = useState<string>('1.0');
     const [newIsOvertime, setNewIsOvertime] = useState<boolean>(false);
     const [newWorkHours, setNewWorkHours] = useState<string>('0');
+    const [newLate, setNewLate] = useState<string>('0:00');
+    const [newEarly, setNewEarly] = useState<string>('0:00');
     const [newIsCheck, setNewIsCheck] = useState<boolean>(false);
 
     // Derived values (calculated on render for simplicity in UI, but passed to Save)
@@ -73,6 +143,17 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         setNewIsOvertime(rec.isOvertime || false);
         setNewWorkHours(String(rec.workHours));
         setNewIsCheck(rec.status === 'Check');
+
+        // Init Late/Early inputs (for display in edit mode)
+        const { late, early } = calcLateEarly(
+            rec.start ? rec.start.slice(0, 5) : '',
+            rec.end ? rec.end.slice(0, 5) : '',
+            rec.shiftStart,
+            rec.shiftEnd,
+            rec.breakTime
+        );
+        setNewLate(formatDecimalToTime(late / 60));
+        setNewEarly(formatDecimalToTime(early / 60));
     };
 
     const stopEditing = () => {
@@ -83,6 +164,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         setNewIsOvertime(false);
         setNewWorkHours('0');
         setNewIsCheck(false);
+        setNewLate('0:00');
+        setNewEarly('0:00');
     };
 
     // Auto-calculate logic
@@ -93,41 +176,50 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         if (rawDuration === null) return; // Don't wipe if invalid
 
         const netDuration = Math.max(0, rawDuration - Number(newBreakTime));
-        const potentialOvertime = Math.max(0, netDuration - 8.0);
+        // const potentialOvertime = Math.max(0, netDuration - 8.0);
 
         let calculatedHours = netDuration;
-        if (potentialOvertime > 0 && !newIsOvertime) {
-            calculatedHours = 8.0;
-        }
-
-        // Only auto-update if the user hasn't typed a custom value that wildly differs?
-        // No, simpler to just always update on dependency change. User overrides LAST.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setNewWorkHours(calculatedHours.toFixed(2));
-
-    }, [newStart, newEnd, newBreakTime, newIsOvertime, editingId]); // Run when inputs change
+    }, [newStart, newEnd, newBreakTime, editingId]);
 
     const handleSave = async (id: number) => {
-        // Calculate overtime for display/record purpose based on logic, NOT the manual hours
-        // OR: If manual hours are "8.0" (but real is 7.5), overtime is 0.
-        // If manual hours are "9.0" (real 7.5), overtime is 1.0?
-        // Let's stick to the derived "Overtime" field logic for saving the *Overtime Value*
-        // but save the *WorkHours* as what the user typed.
-
         const rawDuration = calculateDuration(newStart, newEnd) || 0;
         const netDuration = Math.max(0, rawDuration - Number(newBreakTime));
         const potentialOvertime = Math.max(0, netDuration - 8.0);
-        const finalOvertime = (potentialOvertime > 0 && newIsOvertime) ? potentialOvertime : 0;
+        const finalOvertime = potentialOvertime;
+
+        // Back-calculate Shift Times
+        const parse = (t: string) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const format = (m: number) => {
+            const h = Math.floor(m / 60);
+            const min = m % 60;
+            return `${h}:${min.toString().padStart(2, '0')}`;
+        };
+
+        let shiftStartStr = null;
+        let shiftEndStr = null;
+
+        // Note: With new logic, we don't necessarily update shift on every save from late/early, 
+        // as late/early are auto-calc. 
+        // But if we wanted to support "Manual Shift Override" we would do it here.
+        // For now, consistent with user request, we rely on Auto Logic. 
+        // So we pass NULL for shift updates unless we implement shift editing explicitly.
+        // User rejected "Manual Late Input", so we follow that.
 
         await updateAttendance(
             id,
             newStart,
             newEnd,
-            Number(newWorkHours), // Use user input
+            Number(newWorkHours),
             Number(newBreakTime),
             Number(finalOvertime.toFixed(2)),
             newIsOvertime,
-            newIsCheck ? 'Check' : 'Normal'
+            newIsCheck ? 'Check' : 'Normal',
+            null,
+            null
         );
         stopEditing();
     };
@@ -150,6 +242,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                     <th className="p-4">開始</th>
                     <th className="p-4">終了</th>
                     <th className="p-4">休憩</th>
+                    <th className="p-4">遅刻</th>
+                    <th className="p-4">早退</th>
                     <th className="p-4">残業</th>
                     <th className="p-4">実働</th>
                     <th className="p-4">状態</th>
@@ -159,6 +253,15 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
             <tbody className="divide-y divide-slate-700">
                 {initialData.map((rec) => {
                     const isEditing = editingId === rec.id;
+
+                    // Calc Display Late/Early (using new logic)
+                    const { late, early } = calcLateEarly(
+                        isEditing ? newStart : (rec.start ? rec.start.slice(0, 5) : ''),
+                        isEditing ? newEnd : (rec.end ? rec.end.slice(0, 5) : ''),
+                        rec.shiftStart,
+                        rec.shiftEnd,
+                        isEditing ? Number(newBreakTime) : rec.breakTime
+                    );
 
                     if (isEditing) {
                         return (
@@ -189,6 +292,12 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                         onChange={(e) => setNewBreakTime(e.target.value)}
                                         className="bg-slate-900 border border-slate-600 rounded p-1 w-16 text-white"
                                     />
+                                </td>
+                                <td className="p-4 text-slate-400">
+                                    {late > 0 ? <span className="text-red-400 font-mono">{formatDecimalToTime(late / 60)}</span> : '-'}
+                                </td>
+                                <td className="p-4 text-slate-400">
+                                    {early > 0 ? <span className="text-red-400 font-mono">{formatDecimalToTime(early / 60)}</span> : '-'}
                                 </td>
                                 <td className="p-4">
                                     {/* Potential Overtime UI logic reused for display context if needed, but here we just show the input */}
@@ -266,6 +375,24 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                             <td className="p-4">{rec.end || '-'}</td>
                             <td className="p-4 text-slate-400">
                                 {rec.breakTime ? formatDecimalToTime(rec.breakTime) : '1:00'}
+                            </td>
+                            <td className="p-4 text-slate-400">
+                                {late > 0 ? (
+                                    <span className="text-red-400 font-mono text-xs font-bold">
+                                        {formatDecimalToTime(late / 60)}
+                                    </span>
+                                ) : (
+                                    <span className="text-slate-600">-</span>
+                                )}
+                            </td>
+                            <td className="p-4 text-slate-400">
+                                {early > 0 ? (
+                                    <span className="text-red-400 font-mono text-xs font-bold">
+                                        {formatDecimalToTime(early / 60)}
+                                    </span>
+                                ) : (
+                                    <span className="text-slate-600">-</span>
+                                )}
                             </td>
                             <td className="p-4">
                                 {rec.overtime > 0 ? (

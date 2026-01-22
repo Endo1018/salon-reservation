@@ -64,69 +64,82 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
         let totalLateMins = 0;
         let totalEarlyMins = 0;
 
+        // Duplicate helper from table.tsx for consistency
+        const applyRounding = (start: string | null, end: string | null) => {
+            let s = start;
+            let e = end;
+
+            if (s) {
+                const [h, m] = s.split(':').map(Number);
+                const mins = h * 60 + m;
+                // Rule: 12:40 - 12:59 -> 13:00
+                if (mins >= 12 * 60 + 40 && mins <= 12 * 60 + 59) {
+                    s = '13:00';
+                }
+            }
+
+            if (e) {
+                const [h, m] = e.split(':').map(Number);
+                const mins = h * 60 + m;
+                // Rule: 21:35 - 21:59 -> 22:00
+                if (mins >= 21 * 60 + 35 && mins <= 21 * 60 + 59) {
+                    e = '22:00';
+                }
+            }
+            return { start: s, end: e };
+        };
+
+        const calcLateEarly = (attStart: string, attEnd: string, shiftStart: string | null, shiftEnd: string | null, breakTime: number = 1.0) => {
+            if (!attStart || !shiftStart || !attEnd) return { late: 0, early: 0 };
+
+            const parse = (t: string) => {
+                const [h, m] = t.split(':').map(Number);
+                return h * 60 + m;
+            };
+
+            // 1. Normalize Shift
+            let stdShiftStart = parse(shiftStart);
+            if (stdShiftStart >= 750 && stdShiftStart <= 795) stdShiftStart = 780; // 12:30-13:15 -> 13:00
+            if (stdShiftStart >= 570 && stdShiftStart <= 615) stdShiftStart = 600; // 09:30-10:15 -> 10:00
+
+            // 2. Apply Rounding
+            const { start: rStart, end: rEnd } = applyRounding(attStart, attEnd);
+            if (!rStart || !rEnd) return { late: 0, early: 0 };
+
+            const effStart = parse(rStart);
+            const effEnd = parse(rEnd);
+
+            // 3. Calc Late
+            const late = Math.max(0, effStart - stdShiftStart);
+
+            // 4. Calc Early (8h Rule)
+            const effDurationMins = (effEnd - effStart) - (breakTime * 60);
+            const early = Math.max(0, (8 * 60) - effDurationMins);
+
+            return { late, early };
+        };
+
         staffAttendance.forEach(att => {
             totalWorkHours += att.workHours || 0;
             totalOvertimeHours += att.overtime || 0;
 
             // Find corresponding shift
             const d = new Date(att.date);
-            // Match shift by date
             const shift = staffShifts.find(s => {
                 const sd = new Date(s.date);
                 return sd.getDate() === d.getDate() && sd.getMonth() === d.getMonth();
             });
 
-            // Helper for Rounding (Mimics import-excel.ts)
-            const applyRounding = (time: string, role: string, type: 'start' | 'end') => {
-                const [h, m] = time.split(':').map(Number);
-                const min = h * 60 + m;
-
-                if (role === 'RECEPTION') {
-                    if (type === 'start') {
-                        // 09:30 - 10:00 -> 10:00
-                        if (min >= 9 * 60 + 30 && min <= 10 * 60) return "10:00";
-                        // 12:40+ -> 13:00
-                        if (h === 12 && m >= 40) return "13:00";
-                    } else {
-                        // 18:45 - 19:10 -> 19:00
-                        if (min >= 18 * 60 + 45 && min <= 19 * 60 + 10) return "19:00";
-                        // 21:31 - 22:04 -> 22:00 (Using shared logic from import)
-                        if ((h === 21 && m >= 31) || (h === 22 && m <= 4)) return "22:00";
-                    }
-                } else {
-                    // Therapist / Other
-                    if (type === 'start') {
-                        if (h === 12 && m >= 40) return "13:00";
-                    } else {
-                        if ((h === 21 && m >= 31) || (h === 22 && m <= 4)) return "22:00";
-                    }
-                }
-                return time; // Return original if no rounding
-            };
-
-            if (shift && shift.status === 'Confirmed') {
-                // Apply Rounding to Shift Time to match Attendance Rounding
-                const roundedShiftStart = shift.start ? applyRounding(shift.start, staff.role, 'start') : null;
-                const roundedShiftEnd = shift.end ? applyRounding(shift.end, staff.role, 'end') : null;
-
-                const shiftStart = parseTime(roundedShiftStart);
-                const shiftEnd = parseTime(roundedShiftEnd);
-                const attStart = parseTime(att.start);
-                const attEnd = parseTime(att.end);
-
-                // Late Calculation
-                if (shiftStart !== null && attStart !== null) {
-                    if (attStart > shiftStart) {
-                        totalLateMins += (attStart - shiftStart);
-                    }
-                }
-
-                // Early Leave Calculation
-                if (shiftEnd !== null && attEnd !== null) {
-                    if (attEnd < shiftEnd) {
-                        totalEarlyMins += (shiftEnd - attEnd);
-                    }
-                }
+            if (att.start && att.end && shift && shift.start && shift.end) {
+                const { late, early } = calcLateEarly(
+                    att.start,
+                    att.end,
+                    shift.start,
+                    shift.end,
+                    att.breakTime ?? 1.0
+                );
+                totalLateMins += late;
+                totalEarlyMins += early;
             }
         });
 
