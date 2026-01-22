@@ -218,8 +218,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
             Number(finalOvertime.toFixed(2)),
             newIsOvertime,
             newIsCheck ? 'Check' : 'Normal',
-            null,
-            null
+            newStart, // Update Shift Start to match Manual Attendance
+            newEnd    // Update Shift End
         );
         stopEditing();
     };
