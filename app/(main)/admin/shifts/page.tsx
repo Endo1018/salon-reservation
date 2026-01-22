@@ -1,6 +1,8 @@
 import prisma from '@/lib/db';
 import ShiftCalendar from './calendar'; // Client Component
 import Link from 'next/link';
+import ImportButton from '../attendance/ImportButton';
+import DeleteAllButton from '../attendance/DeleteAllButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +57,13 @@ export default async function ShiftManagementPage(props: Props) {
         <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8">
             <div className="max-w-6xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-2xl font-bold text-[var(--primary)] tracking-widest">SHIFT MANAGEMENT</h1>
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-bold text-[var(--primary)] tracking-widest">SHIFT MANAGEMENT</h1>
+                        <div className="flex gap-2">
+                            <ImportButton />
+                            <DeleteAllButton year={year} month={month} />
+                        </div>
+                    </div>
                     <div className="flex items-center gap-4 bg-slate-800 p-2 rounded-lg border border-slate-700">
                         <Link href={`?month=${prevMonthStr}`} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white">
                             &lt; Prev

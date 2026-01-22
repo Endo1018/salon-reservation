@@ -84,11 +84,46 @@ export async function deleteAttendance(id: number) {
     }
 }
 
-export async function deleteAllAttendance() {
+export async function deleteAllAttendance(year?: number, month?: number) {
     try {
-        await prisma.attendance.deleteMany({});
-        await prisma.shift.deleteMany({});
+        let whereClause: any = {
+            status: { not: 'AL' } // Protect AL
+        };
+
+        if (year !== undefined && month !== undefined) {
+            // Scope to specific month
+            // month is 0-indexed in JS Date, but usually 1-indexed in UI? 
+            // In ShiftPage: month = today.getMonth() (0-indexed).
+            // Let's assume input is 0-indexed for consistency with Date() constructor.
+            const startDate = new Date(Date.UTC(year, month, 1));
+            const endDate = new Date(Date.UTC(year, month + 1, 1));
+
+            whereClause.date = {
+                gte: startDate,
+                lt: endDate
+            };
+        }
+
+        // Delete Attendance (except AL)
+        await prisma.attendance.deleteMany({
+            where: whereClause
+        });
+
+        // Delete Shifts (except AL)
+        // Check if Shift has status 'AL'? 
+        // Assuming Shift status also uses 'AL' or similar. 
+        // If Shift status for AL is 'AL' or 'Planned Leave', we should protect it.
+        // User said "AL is remaining".
+        // Let's apply same logic to Shift.
+        await prisma.shift.deleteMany({
+            where: {
+                ...whereClause,
+                status: { not: 'AL' }
+            }
+        });
+
         revalidatePath('/admin/attendance');
+        revalidatePath('/admin/shifts');
     } catch (e) {
         console.error(`[deleteAllAttendance] Error:`, e);
         throw e;

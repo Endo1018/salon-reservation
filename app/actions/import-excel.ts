@@ -99,28 +99,62 @@ export async function importAttendanceFromExcel(formData: FormData) {
             }
         }
 
-        // --- 2. Process Each Staff ---
+        // --- 2. Bulk Fetch Existing Data ---
+        // Find Date Range
+        const firstDateStr = dateCols[0].dateStr;
+        const lastDateStr = dateCols[dateCols.length - 1].dateStr;
+        const [fDay, fMonth] = firstDateStr.split('/').map(Number);
+        const [lDay, lMonth] = lastDateStr.split('/').map(Number);
+
+        // Construct Date objects manually to ensure correct UTC mapping as used in other parts
+        // Assuming year 2026 as per code
+        const startRange = new Date(Date.UTC(year, fMonth - 1, fDay));
+        const endRange = new Date(Date.UTC(year, lMonth - 1, lDay));
+        // Add 1 day to endRange for exclusive upper bound if needed, or just use lte
+        // Logic below uses exact dates, so range filter is good optimization.
+
+        const validStaffIdsArray = Array.from(validStaffIds);
+
+        const [existingAttendances, existingShifts] = await Promise.all([
+            prisma.attendance.findMany({
+                where: {
+                    staffId: { in: validStaffIdsArray },
+                    date: { gte: startRange, lte: endRange }
+                }
+            }),
+            prisma.shift.findMany({
+                where: {
+                    staffId: { in: validStaffIdsArray },
+                    date: { gte: startRange, lte: endRange }
+                }
+            })
+        ]);
+
+        // Access Maps: Key = `${staffId}-${date.toISOString()}`
+        // Using toISOString() key is safe if dates are stored consistently as UTC midnight.
+        const attendanceMap = new Map<string, typeof existingAttendances[0]>();
+        existingAttendances.forEach(a => attendanceMap.set(`${a.staffId}-${a.date.toISOString()}`, a));
+
+        const shiftMap = new Map<string, typeof existingShifts[0]>();
+        existingShifts.forEach(s => shiftMap.set(`${s.staffId}-${s.date.toISOString()}`, s));
+
+        // --- 3. Prepare Operations ---
+        const operations: (() => Promise<any>)[] = [];
+
+        // Helper to queue op
+        let successfulUpdates = 0;
+
         for (const staffId of validStaffIds) {
             const rowIndices = staffRowMap.get(staffId)!;
             const staff = allStaff.find(s => s.id === staffId)!;
-
             let staffHasUpdate = false;
 
-            // Iterate Dates
             for (const { dateStr, colIndex } of dateCols) {
                 const [day, month] = dateStr.split('/').map(Number);
                 const dateObj = new Date(Date.UTC(year, month - 1, day));
+                const key = `${staffId}-${dateObj.toISOString()}`;
 
-                // Extract best start/end from ALL rows for this staff
-                let rawStart: string | null = null;
-                let rawEnd: string | null = null;
-
-                // Priority: We just need to find *data*. 
-                // Assumption: A staff only works ONE shift type per day.
-                // If multiple rows have data, we pick the first valid one found?
-                // Or merge? (Earliest start, Latest end).
-                // Let's use Earliest Start and Latest End to be safe if split across rows.
-
+                // --- Extract best start/end (Same logic as before) ---
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const cleanTime = (t: any) => {
                     if (!t) return null;
@@ -130,6 +164,8 @@ export async function importAttendanceFromExcel(formData: FormData) {
                     return null;
                 };
 
+                let rawStart: string | null = null;
+                let rawEnd: string | null = null;
                 let minStartMin = 9999;
                 let maxEndMin = -1;
                 let foundData = false;
@@ -151,14 +187,7 @@ export async function importAttendanceFromExcel(formData: FormData) {
                     if (e) {
                         const [h, m] = e.split(':').map(Number);
                         const mins = h * 60 + m;
-                        // Handle overnight? If end < start, add 24h. 
-                        // But we just want the string.
-                        // Let's just take the non-null end associated with the start?
-                        // Actually, simple overwrite is risky.
-                        // If Row 1 has 10:00 - 19:00, Row 2 is empty.
-                        // If Row 1 is empty, Row 2 has 13:00 - 22:00.
-                        // We just grab the one that exists.
-                        if (!rawEnd || mins > maxEndMin) { // Use latest end? 
+                        if (!rawEnd || mins > maxEndMin) {
                             maxEndMin = mins;
                             rawEnd = e;
                         }
@@ -171,66 +200,37 @@ export async function importAttendanceFromExcel(formData: FormData) {
                     rawEnd = null;
                 }
 
-                // --- Logic Reuse (Rounding, Calc, Upsert) ---
-
-                // --- Rounding Logic for Attendance ---
+                // --- Rounding Logic (Same) ---
                 let attStart = rawStart;
                 let attEnd = rawEnd;
 
                 if (staff.role === 'RECEPTION') {
-                    // --- RECEPTION RULES ---
-                    // Pattern 1: Early Shift (10:00 - 19:00)
-                    // Start: 09:30 ~ 10:00 -> 10:00
                     if (attStart) {
                         const [h, m] = attStart.split(':').map(Number);
                         const min = h * 60 + m;
-                        if (min >= 9 * 60 + 30 && min <= 10 * 60) {
-                            attStart = "10:00";
-                        }
-                        // Also apply strict late shift start rounding if applicable?
-                        // User mentioned 2 patterns (10:00 and 13:00).
-                        // Let's apply the 13:00 rule too if it hits that range.
-                        if (h === 12 && m >= 40) {
-                            attStart = "13:00";
-                        }
+                        if (min >= 9 * 60 + 30 && min <= 10 * 60) attStart = "10:00";
+                        if (h === 12 && m >= 40) attStart = "13:00";
                     }
-
-                    // End: 18:45 ~ 19:10 -> 19:00
                     if (attEnd) {
                         const [h, m] = attEnd.split(':').map(Number);
                         const min = h * 60 + m;
-                        if (min >= 18 * 60 + 45 && min <= 19 * 60 + 10) {
-                            attEnd = "19:00";
-                        }
-                        // Also apply late shift end rounding (22:00)
-                        if ((h === 21 && m >= 31) || (h === 22 && m <= 4)) {
-                            attEnd = "22:00";
-                        }
+                        if (min >= 18 * 60 + 45 && min <= 19 * 60 + 10) attEnd = "19:00";
+                        if ((h === 21 && m >= 31) || (h === 22 && m <= 4)) attEnd = "22:00";
                     }
-
                 } else {
-                    // --- THERAPIST / OTHER RULES ---
-                    // Start: 12:40 ~ 12:59 -> 13:00
                     if (attStart) {
                         const [h, m] = attStart.split(':').map(Number);
-                        if (h === 12 && m >= 40) {
-                            attStart = "13:00";
-                        }
+                        if (h === 12 && m >= 40) attStart = "13:00";
                     }
-
-                    // End: 21:31 ~ 22:04 -> 22:00
                     if (attEnd) {
                         const [h, m] = attEnd.split(':').map(Number);
-                        if ((h === 21 && m >= 31) || (h === 22 && m <= 4)) {
-                            attEnd = "22:00";
-                        }
+                        if ((h === 21 && m >= 31) || (h === 22 && m <= 4)) attEnd = "22:00";
                     }
                 }
 
-                // --- Calculate Work Hours (Attendance) ---
+                // --- Calc Work Hours ---
                 let workHours = 0;
                 const breakTime = 1.0;
-
                 if (attStart && attEnd) {
                     const [h1, m1] = attStart.split(':').map(Number);
                     const [h2, m2] = attEnd.split(':').map(Number);
@@ -242,82 +242,96 @@ export async function importAttendanceFromExcel(formData: FormData) {
                     workHours = Number(netDiff.toFixed(2));
                 }
 
-                const existing = await prisma.attendance.findFirst({
-                    where: { staffId: staff.id, date: dateObj }
-                });
+                // --- Queue DB Ops ---
+                const existing = attendanceMap.get(key);
+                const existingShift = shiftMap.get(key);
 
                 if (existing) {
-                    if (existing.isManual) {
-                        // Skip overwriting manually corrected data
-                        continue;
-                    }
+                    if (!existing.isManual) {
+                        // Queue Attendance Update
+                        operations.push(() => prisma.attendance.update({
+                            where: { id: existing.id },
+                            data: {
+                                start: attStart || null,
+                                end: attEnd || null,
+                                workHours, breakTime,
+                                status: (!attStart && !attEnd) ? 'Off' : ((!attStart || !attEnd) ? 'Error' : 'Normal')
+                            }
+                        }));
 
-                    await prisma.attendance.update({
-                        where: { id: existing.id },
-                        data: {
-                            start: attStart || null,
-                            end: attEnd || null,
-                            workHours: workHours,
-                            breakTime: breakTime,
-                            status: (!attStart && !attEnd) ? 'Off' : ((!attStart || !attEnd) ? 'Error' : 'Normal')
-                        }
-                    });
-
-                    // Sync Shift (Raw)
-                    const existingShift = await prisma.shift.findFirst({
-                        where: { staffId: staff.id, date: dateObj }
-                    });
-                    if (existingShift) {
-                        if (!rawStart && !rawEnd) {
-                            await prisma.shift.update({
-                                where: { id: existingShift.id },
-                                data: { start: null, end: null, status: 'Off' }
-                            });
+                        // Queue Shift Update
+                        if (existingShift) {
+                            if (!rawStart && !rawEnd) {
+                                operations.push(() => prisma.shift.update({
+                                    where: { id: existingShift.id },
+                                    data: { start: null, end: null, status: 'Off' }
+                                }));
+                            } else if (rawStart && rawEnd) {
+                                operations.push(() => prisma.shift.update({
+                                    where: { id: existingShift.id },
+                                    data: { start: rawStart, end: rawEnd, status: 'Confirmed' }
+                                }));
+                            }
                         } else if (rawStart && rawEnd) {
-                            await prisma.shift.update({
-                                where: { id: existingShift.id },
-                                data: { start: rawStart, end: rawEnd, status: 'Confirmed' }
-                            });
+                            // Create Shift if missing
+                            operations.push(() => prisma.shift.create({
+                                data: { staffId: staff.id, date: dateObj, start: rawStart, end: rawEnd, status: 'Confirmed' }
+                            }));
                         }
+                        staffHasUpdate = true;
                     }
-
                 } else if (rawStart && rawEnd) {
-                    await prisma.attendance.create({
+                    // Create Attendance
+                    operations.push(() => prisma.attendance.create({
                         data: {
                             staffId: staff.id, date: dateObj, start: attStart, end: attEnd,
-                            workHours: workHours, breakTime: breakTime, status: 'Normal'
+                            workHours, breakTime, status: 'Normal'
                         }
-                    });
+                    }));
 
-                    // Sync Create Shift
-                    const existingShift = await prisma.shift.findFirst({
-                        where: { staffId: staff.id, date: dateObj }
-                    });
-                    if (!existingShift) {
-                        await prisma.shift.create({
-                            data: { staffId: staff.id, date: dateObj, start: rawStart, end: rawEnd, status: 'Confirmed' }
-                        });
-                    } else {
-                        await prisma.shift.update({
+                    // Create/Update Shift
+                    // Note: If we are creating attendance, shift might still exist (unlikely but possible)
+                    if (existingShift) {
+                        operations.push(() => prisma.shift.update({
                             where: { id: existingShift.id },
                             data: { start: rawStart, end: rawEnd, status: 'Confirmed' }
-                        });
+                        }));
+                    } else {
+                        operations.push(() => prisma.shift.create({
+                            data: { staffId: staff.id, date: dateObj, start: rawStart, end: rawEnd, status: 'Confirmed' }
+                        }));
                     }
+                    staffHasUpdate = true;
                 }
+            } // end date loop
 
-                staffHasUpdate = true;
-                updateCount++;
-            }
+            if (staffHasUpdate) successfulUpdates++;
             processedStaffIds.push(staffId);
         }
 
-        revalidatePath('/admin/attendance');
-        const uniqueMissing = Array.from(new Set(missingStaffIds));
-        let msg = `Process Complete.\nUpdated Records: ${updateCount}\nProcessed Staff: ${processedStaffIds.join(', ')}`;
-        if (uniqueMissing.length > 0) {
-            msg += `\n\nUnknown IDs (Not in DB): ${uniqueMissing.join(', ')}`;
+        // --- 4. Execute Batched Operations ---
+        console.log(`[Import] Executing ${operations.length} DB operations...`);
+
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < operations.length; i += BATCH_SIZE) {
+            const batch = operations.slice(i, i + BATCH_SIZE);
+            await Promise.all(batch.map(op => op()));
         }
+
+        revalidatePath('/admin/attendance');
+        revalidatePath('/admin/shifts');
+
+        const uniqueMissing = Array.from(new Set(missingStaffIds));
+        let msg = `取込完了 (Import Complete)\n`;
+        msg += `・対象スタッフ数 (Processed Staff): ${processedStaffIds.length}\n`;
+        msg += `・データ更新有り (Updated Staff): ${successfulUpdates}\n`;
+
+        if (uniqueMissing.length > 0) {
+            msg += `\n⚠️ 不明なスタッフID (Unknown IDs): ${uniqueMissing.join(', ')}`;
+        }
+
         return { success: true, message: msg };
+
 
     } catch (e) {
         console.error(e);

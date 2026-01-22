@@ -143,10 +143,7 @@ export default async function AttendanceManagementPage({
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-2xl font-bold text-[var(--primary)] tracking-widest">勤怠修正 (Attendance Correction)</h1>
-                    <div className="flex gap-2">
-                        <ImportButton />
-                        <DeleteAllButton />
-                    </div>
+                    {/* Buttons moved to Shift Management Page */}
                 </div>
 
                 <AttendanceFilter staffList={staffList} />
