@@ -50,22 +50,58 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         const targetDate = targetDateStr ? new Date(targetDateStr) : today;
         const month = targetDate.getMonth() + 1; // 1-12
         const year = targetDate.getFullYear();
-        const sheetName = `Tháng_${month}_${year}`; // Google Sheet Tab Name Format
 
-        console.log(`[Sync] Targeting Sheet: ${sheetName}`);
+        // Regex to match "Tháng_1_2026", "Tháng 01_2026", "01_2026", "1_2026", etc.
+        // Matches: (Optional "Tháng" + space/underscore) + (1 or 01) + (space/underscore) + 2026
+        // Note: Vietnamese 'á' might be involved but usually "Thang" or "Tháng".
+        const monthRegex = new RegExp(`^(?:Th[aá]ng[ _]?)?0?${month}[_ ]${year}$`, 'i');
 
-        // 2. Fetch Data
+        console.log(`[Sync] Looking for sheet matching: Month ${month}, Year ${year}`);
+
+        // 2. Fetch Metadata to find exact sheet name
+        let sheetName = '';
+        try {
+            const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+            const tabs = meta.data.sheets?.map(s => s.properties?.title || '') || [];
+
+            // Find match
+            sheetName = tabs.find(t => monthRegex.test(t.trim())) || '';
+
+            if (!sheetName) {
+                // Fallback specific checks if regex fails or is too strict
+                const candidates = [
+                    `${month.toString().padStart(2, '0')}_${year}`,
+                    `Tháng_${month}_${year}`,
+                    `Tháng ${month.toString().padStart(2, '0')}_${year}`, // Found in check
+                    `Tháng_${month.toString().padStart(2, '0')}_${year}`,
+                ];
+                sheetName = tabs.find(t => candidates.includes(t.trim())) || '';
+            }
+
+            if (!sheetName) {
+                console.error(`[Sync] No matching sheet found in:`, tabs);
+                return { success: false, message: `Sheet for ${month}/${year} not found. Available: ${tabs.slice(0, 5).join(', ')}...` };
+            }
+
+            console.log(`[Sync] Found target sheet: "${sheetName}"`);
+
+        } catch (error: any) {
+            console.error(`Error fetching metadata:`, error.message);
+            return { success: false, message: `Connection Failed: ${error.message}` };
+        }
+
+        // 3. Fetch Data
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let rows: any[][] = [];
         try {
             const response = await sheets.spreadsheets.values.get({
                 spreadsheetId: SHEET_ID,
-                range: `${sheetName}!A2:L`, // Skip header
+                range: `'${sheetName}'!A2:L`, // Quote the name for safety
             });
             rows = response.data.values || [];
         } catch (error: any) {
-            console.error(`Error fetching sheet "${sheetName}":`, error.message);
-            return { success: false, message: `Sheet "${sheetName}" not found or error: ${error.message}` };
+            console.error(`Error fetching rows from "${sheetName}":`, error.message);
+            return { success: false, message: `Error reading rows: ${error.message}` };
         }
 
         if (rows.length === 0) {
