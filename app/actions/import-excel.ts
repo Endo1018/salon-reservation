@@ -3,6 +3,7 @@
 import prisma from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
+import { Attendance, Shift } from '@prisma/client';
 
 export async function importAttendanceFromExcel(formData: FormData) {
     const file = formData.get('file') as File;
@@ -58,7 +59,7 @@ export async function importAttendanceFromExcel(formData: FormData) {
 
         // Pre-fetch all staff to validate IDs
         const allStaff = await prisma.staff.findMany();
-        const dbStaffIds = new Set(allStaff.map(s => s.id));
+        const dbStaffIds = new Set(allStaff.map((s: { id: string }) => s.id));
 
         for (let i = entryRowStartIndex; i < data.length; i++) {
             const row = data[i];
@@ -134,11 +135,11 @@ export async function importAttendanceFromExcel(formData: FormData) {
 
         // Access Maps: Key = `${staffId}-${date.toISOString()}`
         // Using toISOString() key is safe if dates are stored consistently as UTC midnight.
-        const attendanceMap = new Map<string, typeof existingAttendances[0]>();
-        existingAttendances.forEach(a => attendanceMap.set(`${a.staffId}-${a.date.toISOString()}`, a));
+        const attendanceMap = new Map<string, Attendance>();
+        existingAttendances.forEach((a: Attendance) => attendanceMap.set(`${a.staffId}-${a.date.toISOString()}`, a));
 
-        const shiftMap = new Map<string, typeof existingShifts[0]>();
-        existingShifts.forEach(s => shiftMap.set(`${s.staffId}-${s.date.toISOString()}`, s));
+        const shiftMap = new Map<string, Shift>();
+        existingShifts.forEach((s: Shift) => shiftMap.set(`${s.staffId}-${s.date.toISOString()}`, s));
 
         // --- 3. Prepare Operations ---
         const operations: (() => Promise<any>)[] = [];
