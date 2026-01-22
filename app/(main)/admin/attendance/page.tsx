@@ -47,12 +47,16 @@ export default async function AttendanceManagementPage({
             lt: end,
         };
     } else {
-        // Default: Current Month? Or just recent 100?
-        // Let's default to current month to be helpful, or just take 100 recent.
-        // User asked for filters. Let's keep "Take 100" as fallback if no filter, 
-        // OR better: Default to "This Month" if nothing selected?
-        // Let's stick to simple "Take 100" if no specific date/month filter is active, 
-        // to avoid empty screens if they haven't imported current month yet.
+        // Default: Current Month
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth(); // 0-indexed
+        const start = new Date(Date.UTC(y, m, 1));
+        const end = new Date(Date.UTC(y, m + 1, 1));
+        where.date = {
+            gte: start,
+            lt: end,
+        };
     }
 
     // Filter out "Off" and Empty records ("-")
@@ -74,7 +78,7 @@ export default async function AttendanceManagementPage({
             { staffId: 'asc' }
         ],
         include: { staff: true },
-        take: (dateStr || monthStr) ? undefined : 100, // No limit if filtering by date/month
+        // No limit, relying on date filter
     });
 
     // Fetch Shifts for calculation
