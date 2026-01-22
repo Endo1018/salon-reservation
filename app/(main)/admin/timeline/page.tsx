@@ -30,8 +30,6 @@ export default async function TimelineDashboard(props: Props) {
                         Relaxation Salon Reservation
                     </h2>
                     <DateController date={dateStr} />
-                </div>
-                <div className="flex gap-2">
                     <GoogleSyncButton date={dateStr} />
                 </div>
             </div>
