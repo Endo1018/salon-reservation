@@ -4,6 +4,7 @@ import { getTimelineData } from '@/app/actions/timeline';
 import TimelineGraph from './components/TimelineGraph';
 import DateController from './components/DateController';
 import StaffAttendanceRow from './components/StaffAttendanceRow';
+import GoogleSyncButton from './components/GoogleSyncButton';
 
 type Props = {
     searchParams: { date?: string };
@@ -31,7 +32,7 @@ export default async function TimelineDashboard(props: Props) {
                     <DateController date={dateStr} />
                 </div>
                 <div className="flex gap-2">
-                    {/* Placeholder for future actions */}
+                    <GoogleSyncButton date={dateStr} />
                 </div>
             </div>
 
