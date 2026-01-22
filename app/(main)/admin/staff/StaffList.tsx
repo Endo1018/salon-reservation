@@ -83,6 +83,17 @@ export default function StaffList({ staffList }: { staffList: Staff[] }) {
                                             <div className="text-green-400">Comm: {staff.commissionRate.toLocaleString()}</div>
                                         )}
                                         <div className="text-slate-500 text-xs mt-1">Dependents: {staff.dependents}</div>
+
+                                        {/* Allowances Display */}
+                                        <div className="mt-2 pt-2 border-t border-slate-700/50 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-slate-400">
+                                            {(staff.allowancePosition || 0) > 0 && <div>役職: {staff.allowancePosition?.toLocaleString()}</div>}
+                                            {(staff.allowanceCommute || 0) > 0 && <div>通勤: {staff.allowanceCommute?.toLocaleString()}</div>}
+                                            {(staff.allowanceCommunication || 0) > 0 && <div>通信: {staff.allowanceCommunication?.toLocaleString()}</div>}
+                                            {(staff.allowanceMeal || 0) > 0 && <div>食事: {staff.allowanceMeal?.toLocaleString()}</div>}
+                                            {(staff.allowanceHousing || 0) > 0 && <div>住宅: {staff.allowanceHousing?.toLocaleString()}</div>}
+                                            {(staff.allowanceLanguage || 0) > 0 && <div>外語: {staff.allowanceLanguage?.toLocaleString()}</div>}
+                                            {(staff.allowanceOther || 0) > 0 && <div>他: {staff.allowanceOther?.toLocaleString()}</div>}
+                                        </div>
                                     </td>
                                     <td className="p-4">
                                         {staff.isActive ? (
