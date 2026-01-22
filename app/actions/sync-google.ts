@@ -6,8 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { Service, Staff } from '@prisma/client';
 
 // Configuration
-const SHEET_ID = process.env.SPREADSHEET_ID;
-const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+const SHEET_ID = process.env.SPREADSHEET_ID || '1zFXo9CvS_RHd8EbN6Ae3Tlh31MbGCnYBxzk-5q1FZ5k';
+const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL || 'client-email-private-key@primal-result-309908.iam.gserviceaccount.com';
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
 // Correction Maps
