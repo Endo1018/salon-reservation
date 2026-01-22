@@ -48,15 +48,13 @@ export async function importAttendanceFromExcel(formData: FormData) {
 
         const year = 2026;
 
-        let updateCount = 0;
-        const processedStaffIds: string[] = [];
-        const missingStaffIds: string[] = [];
+        const validStaffIds = new Set<string>();
 
-        // --- 1. Map Rows to Staff IDs (Handling Merged/Empty Cells) ---
-        // Map<StaffId, RowIndex[]>
+        // Vars that were accidentally removed
         const staffRowMap = new Map<string, number[]>();
         let currentStaffId: string | null = null;
-        const validStaffIds = new Set<string>();
+        const processedStaffIds: string[] = [];
+        const missingStaffIds: string[] = [];
 
         // Pre-fetch all staff to validate IDs
         const allStaff = await prisma.staff.findMany();
@@ -64,6 +62,10 @@ export async function importAttendanceFromExcel(formData: FormData) {
 
         for (let i = entryRowStartIndex; i < data.length; i++) {
             const row = data[i];
+            // ... 
+            // (I need to be careful with range. updateCount is at line 51.)
+            // Let's split into two chunks.
+
             if (!row || row.length < 3) continue;
 
             const cellId = row[1]; // Col B: Mã nhân viên
@@ -155,8 +157,7 @@ export async function importAttendanceFromExcel(formData: FormData) {
                 const key = `${staffId}-${dateObj.toISOString()}`;
 
                 // --- Extract best start/end (Same logic as before) ---
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const cleanTime = (t: any) => {
+                const cleanTime = (t: unknown) => {
                     if (!t) return null;
                     const s = String(t).trim();
                     if (s.match(/^\d{1,2}:\d{2}$/)) return s;
