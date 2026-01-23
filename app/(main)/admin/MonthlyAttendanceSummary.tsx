@@ -13,8 +13,48 @@ type Props = {
 };
 
 export default function MonthlyAttendanceSummary({ staffList, shifts, attendance, year, month }: Props) {
-    // ... (existing code)
+    const router = useRouter();
+    const daysInMonth = new Date(year, month, 0).getDate();
 
+    const getRequiredHolidays = (m: number, d: number) => {
+        if (m === 2) return 4;
+        return Math.max(0, d - 26);
+    };
+
+    const handleMonthChange = (offset: number) => {
+        let newYear = year;
+        let newMonth = month + offset;
+        if (newMonth > 12) {
+            newYear++;
+            newMonth = 1;
+        } else if (newMonth < 1) {
+            newYear--;
+            newMonth = 12;
+        }
+        router.push(`?year=${newYear}&month=${newMonth}`);
+    };
+
+    // Helper to parse "HH:MM" to minutes
+    const parseTime = (t: string | null) => {
+        if (!t) return null;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+
+    // Helper to format minutes to "H:MM:SS" (or just H:MM) - User image shows H:MM:SS or H:MM
+    const formatDuration = (mins: number) => {
+        const h = Math.floor(mins / 60);
+        const m = Math.floor(mins % 60);
+        // Assuming user wants 0:00 style
+        return `${h}:${m.toString().padStart(2, '0')}`; // Simplification, usually seconds not tracked
+    };
+
+    const formatHours = (val: number) => {
+        // val is float hours (e.g. 8.5)
+        const h = Math.floor(val);
+        const m = Math.round((val - h) * 60);
+        return `${h}:${m.toString().padStart(2, '0')}`;
+    };
     const summary = staffList.map(staff => {
         const staffShifts = shifts.filter(s => s.staffId === staff.id);
         const staffAttendance = attendance.filter(a => a.staffId === staff.id);
