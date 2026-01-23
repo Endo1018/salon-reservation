@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TimelineResource, TimelineBooking, deleteBooking } from '@/app/actions/timeline';
 import BookingModal from './BookingModal';
+import { getStaffColorClass } from '@/lib/staff-color-utils';
 
 type Props = {
     date: string; // YYYY-MM-DD
@@ -50,18 +51,7 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
         return (diffMins / 60) * hourWidth;
     };
 
-    // Color Palette
-    const staffColors = [
-        'bg-purple-600', 'bg-blue-600', 'bg-emerald-600', 'bg-orange-500',
-        'bg-pink-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-rose-500'
-    ];
-    const getStaffColor = (name: string) => {
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        return staffColors[Math.abs(hash) % staffColors.length];
-    };
+
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden h-full">
@@ -132,7 +122,7 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
                                     {/* Bookings */}
                                     {bookings.filter(b => b.resourceId === r.id).map(b => (
                                         <div key={b.id}
-                                            className={`absolute top-1 bottom-1 rounded text-white text-xs p-1 overflow-hidden shadow-sm border border-white/20 select-none hover:brightness-110 z-10 group/booking ${getStaffColor(b.staffName)} cursor-pointer`}
+                                            className={`absolute top-1 bottom-1 rounded text-white text-xs p-1 overflow-hidden shadow-sm border border-white/20 select-none hover:brightness-110 z-10 group/booking ${getStaffColorClass(b.staffName)} cursor-pointer`}
                                             style={{
                                                 left: getPosition(new Date(b.startAt)),
                                                 width: getWidth(new Date(b.startAt), new Date(b.endAt))
