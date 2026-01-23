@@ -5,10 +5,11 @@ import PayrollTable from './PayrollTable';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function PayrollPage({ searchParams }: { searchParams: { year?: string; month?: string } }) {
+export default async function PayrollPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string }> }) {
     const today = new Date();
-    const year = searchParams?.year ? parseInt(searchParams.year) : today.getFullYear();
-    const month = searchParams?.month ? parseInt(searchParams.month) : today.getMonth() + 1;
+    const params = await searchParams;
+    const year = params?.year ? parseInt(params.year) : today.getFullYear();
+    const month = params?.month ? parseInt(params.month) : today.getMonth() + 1;
 
     // First and Last Day of Month
     const startDate = new Date(year, month - 1, 1);
