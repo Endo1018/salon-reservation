@@ -15,19 +15,23 @@ export default async function BookingMemoRow({ date }: Props) {
     // Wait, sync stores `Date.UTC(...)`, so it is effectively UTC midnight of the booking date.
     // Querying by exact match or range?
 
-    // Safety range:
-    const memos = await prisma.bookingMemo.findMany({
-        where: {
-            date: {
-                gte: startOfDay,
-                lte: endOfDay
+    let memos = [];
+    try {
+        memos = await prisma.bookingMemo.findMany({
+            where: {
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
+            },
+            orderBy: {
+                time: 'asc'
             }
-        },
-        orderBy: {
-            time: 'asc' // String sort might be imperfect but '5:30 PM' sorts okay-ish?
-            // Ideally parse time for sort, but string is okay for now as requested simple display
-        }
-    });
+        });
+    } catch (e) {
+        console.error("Failed to fetch Booking Memos:", e);
+        return null; // Fail gracefully
+    }
 
     if (!memos || memos.length === 0) return null;
 
