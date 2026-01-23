@@ -426,6 +426,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 const bookDateStr = (row[4] as string)?.trim(); // dd/mm/yyyy or yyyy/mm/dd
                 const timeStr = (row[5] as string)?.trim();
                 const content = (row[6] as string)?.trim();
+                const comeStr = (row[8] as string)?.trim()?.toUpperCase();
 
                 if (!bookDateStr) continue;
 
@@ -473,6 +474,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                             time: timeStr || '',
                             persons: parseInt(personsStr) || 0,
                             content: content || '',
+                            hasCome: comeStr === 'TRUE',
                         }
                     });
                     memoCount++;
