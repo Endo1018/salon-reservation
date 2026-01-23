@@ -186,7 +186,10 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 // Time Parse
                 const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
 
-                if (!timeMatch || !dd || !mm || !yyyy) continue;
+                if (!timeMatch || !dd || !mm || !yyyy) {
+                    console.log(`[Sync] Skipped Row (Invalid Date/Time): ${dateStr} ${timeStr}`);
+                    continue;
+                }
 
                 let hours = parseInt(timeMatch[1]);
                 let mins = parseInt(timeMatch[2]);
@@ -195,14 +198,13 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 if (ampm === 'AM' && hours === 12) hours = 0;
 
                 // Timezone Correction: Vietnam (GMT+7) -> UTC
-                // Sheet time is Local (e.g. 14:00). We need to store as UTC (07:00).
-                // Vercel server is UTC, but Date constructor would take local (UTC) as literal.
-                // So 14:00 -> 14:00 UTC -> 21:00 Vietnam.
-                // We subtract 7 hours to align. Date.UTC handles negative overflow correctly.
                 const startAt = new Date(Date.UTC(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), hours - 7, mins));
 
                 // Simple date check
-                if (startAt < startOfMonth || startAt >= endOfMonth) continue;
+                if (startAt < startOfMonth || startAt >= endOfMonth) {
+                    console.log(`[Sync] Skipped Row (Date Out of Range): ${startAt.toISOString()} vs [${startOfMonth.toISOString()} - ${endOfMonth.toISOString()}] | Sheet: ${dateStr}`);
+                    continue;
+                }
 
                 // Match Service 1
                 let svcKey1 = svcName1?.toLowerCase();
@@ -382,6 +384,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
                     successCount++;
                 } else {
+                    console.log(`[Sync] Skipped Row (Service Not Found): "${svcName1}" | Client: ${clientName} | Date: ${dateStr}`);
                     errorCount++;
                 }
 
