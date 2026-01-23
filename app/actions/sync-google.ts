@@ -394,6 +394,57 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             }
         } // end loop
 
+        // --- SYNC BOOKING MEMOS (From 'Booking' sheet) ---
+        try {
+            console.log("[Sync] Fetching 'Booking' sheet for memos...");
+            const memoResponse = await sheets.spreadsheets.values.get({
+                spreadsheetId: SHEET_ID,
+                range: "'Booking'!A6:G", // Data starts at row 6
+            });
+            const memoRows = memoResponse.data.values || [];
+
+            // clear existing memos for this month
+            await prisma.bookingMemo.deleteMany({
+                where: {
+                    date: { gte: startOfMonth, lt: endOfMonth }
+                }
+            });
+
+            let memoCount = 0;
+            for (const row of memoRows) {
+                // Col D(3)=Persons, E(4)=BookingDate, F(5)=Time, G(6)=Content
+                const personsStr = row[3] as string;
+                const bookDateStr = row[4] as string; // dd/mm/yyyy
+                const timeStr = row[5] as string;
+                const content = row[6] as string;
+
+                if (!bookDateStr || !bookDateStr.includes('/')) continue;
+
+                const [bd, bm, by] = bookDateStr.split('/');
+                // Create UTC date for comparison
+                // Use explicit integers
+                const memoDate = new Date(Date.UTC(parseInt(by), parseInt(bm) - 1, parseInt(bd)));
+
+                if (memoDate >= startOfMonth && memoDate < endOfMonth) {
+                    await prisma.bookingMemo.create({
+                        data: {
+                            date: memoDate,
+                            time: timeStr || '',
+                            persons: parseInt(personsStr) || 0,
+                            content: content || '',
+                        }
+                    });
+                    memoCount++;
+                }
+            }
+            console.log(`[Sync] Synced ${memoCount} Booking Memos.`);
+
+        } catch (error: any) {
+            console.error("[Sync] Error syncing Booking Memos:", error.message);
+            // Don't fail the whole sync, just log
+        }
+
+
         revalidatePath('/admin/timeline');
         return { success: true, message: `Sync Complete: ${successCount} Imported, ${errorCount} Errors` };
 
