@@ -404,7 +404,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             console.log("[Sync] Fetching 'Booking' sheet for memos...");
             const memoResponse = await sheets.spreadsheets.values.get({
                 spreadsheetId: SHEET_ID,
-                range: "'Booking'!A6:G", // Data starts at row 6
+                range: "'Booking'!A6:I", // Data finds up to Col I
             });
             const memoRows = memoResponse.data.values || [];
             console.log(`[Sync] Found ${memoRows.length} rows in Booking sheet.`);
