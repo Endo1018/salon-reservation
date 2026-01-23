@@ -16,7 +16,8 @@ const STAFF_COLOR_MAP: Record<string, string> = {
     'Sam': 'bg-cyan-600',
     'JEN': 'bg-lime-600',
     'Massa': 'bg-indigo-600',
-    'TOKIO': 'bg-rose-500'
+    'TOKIO': 'bg-rose-500',
+    'Other': 'bg-slate-500'
 };
 
 // Deterministic color based on string

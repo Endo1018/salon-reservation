@@ -264,6 +264,11 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                         }
                     }
                 }
+                // Fallback to Other if empty
+                if (!staff1 && !(row[10] as string)?.trim()) {
+                    staff1 = staffMap.get('other');
+                }
+
                 let staff2: Staff | undefined = staffMap.get((row[11] as string)?.trim()?.toLowerCase() || '');
                 if (!staff2 && row[11]) {
                     const s2n = (row[11] as string).toLowerCase();
@@ -273,6 +278,10 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                             break;
                         }
                     }
+                }
+                // Fallback to Other if empty
+                if (!staff2 && !(row[11] as string)?.trim()) {
+                    staff2 = staffMap.get('other');
                 }
 
                 // Booking Logic
