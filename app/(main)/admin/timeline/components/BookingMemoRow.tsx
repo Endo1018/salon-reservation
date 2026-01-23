@@ -1,5 +1,7 @@
 
 import { prisma } from '@/lib/db';
+import { CheckCircle } from 'lucide-react';
+import { BookingMemo } from '@prisma/client'; // Import type for safety if needed
 
 type Props = {
     date: string;
@@ -45,9 +47,10 @@ export default async function BookingMemoRow({ date }: Props) {
                     <div key={memo.id} className="flex items-center gap-2 px-3 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300 shadow-sm whitespace-nowrap">
                         <span className="font-bold text-slate-400">{memo.time}</span>
                         <span className="font-medium text-white">{memo.content}</span>
-                        <span className="bg-slate-700 px-1.5 rounded text-[10px] text-slate-400">
-                            {memo.persons}名
-                        </span>
+                        <div className="flex items-center gap-1 bg-slate-700 px-1.5 rounded text-[10px] text-slate-400">
+                            <span>{memo.persons}名</span>
+                            {memo.hasCome && <CheckCircle className="w-3 h-3 text-emerald-400" />}
+                        </div>
                     </div>
                 ))}
             </div>
