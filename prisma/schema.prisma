@@ -131,6 +131,7 @@ model BookingMemo {
   time      String
   persons   Int
   content   String
+  hasCome   Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([date])
