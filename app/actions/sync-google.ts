@@ -402,30 +402,67 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 range: "'Booking'!A6:G", // Data starts at row 6
             });
             const memoRows = memoResponse.data.values || [];
+            console.log(`[Sync] Found ${memoRows.length} rows in Booking sheet.`);
 
-            // clear existing memos for this month
+            // Use UTC boundaries for safe comparison
+            const startOfMonthUTC = new Date(Date.UTC(year, month - 1, 1));
+            const endOfMonthUTC = new Date(Date.UTC(year, month, 1));
+
+            // Clear existing memos for this month (using UTC range matches)
             await prisma.bookingMemo.deleteMany({
                 where: {
-                    date: { gte: startOfMonth, lt: endOfMonth }
+                    date: { gte: startOfMonthUTC, lt: endOfMonthUTC }
                 }
             });
 
             let memoCount = 0;
             for (const row of memoRows) {
                 // Col D(3)=Persons, E(4)=BookingDate, F(5)=Time, G(6)=Content
-                const personsStr = row[3] as string;
-                const bookDateStr = row[4] as string; // dd/mm/yyyy
-                const timeStr = row[5] as string;
-                const content = row[6] as string;
+                const personsStr = (row[3] as string)?.trim();
+                const bookDateStr = (row[4] as string)?.trim(); // dd/mm/yyyy or yyyy/mm/dd
+                const timeStr = (row[5] as string)?.trim();
+                const content = (row[6] as string)?.trim();
 
-                if (!bookDateStr || !bookDateStr.includes('/')) continue;
+                if (!bookDateStr) continue;
 
-                const [bd, bm, by] = bookDateStr.split('/');
-                // Create UTC date for comparison
-                // Use explicit integers
-                const memoDate = new Date(Date.UTC(parseInt(by), parseInt(bm) - 1, parseInt(bd)));
+                // Parse Date safely
+                let yearStr, monthStr, dayStr;
 
-                if (memoDate >= startOfMonth && memoDate < endOfMonth) {
+                if (bookDateStr.includes('/')) {
+                    const parts = bookDateStr.split('/');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            // YYYY/MM/DD
+                            [yearStr, monthStr, dayStr] = parts;
+                        } else {
+                            // DD/MM/YYYY (Assuming DMY over MDY based on Vietnam context)
+                            [dayStr, monthStr, yearStr] = parts;
+                        }
+                    }
+                } else if (bookDateStr.includes('-')) {
+                    const parts = bookDateStr.split('-');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            // YYYY-MM-DD
+                            [yearStr, monthStr, dayStr] = parts;
+                        } else {
+                            // DD-MM-YYYY
+                            [dayStr, monthStr, yearStr] = parts;
+                        }
+                    }
+                }
+
+                if (!yearStr || !monthStr || !dayStr) continue;
+
+                const y = parseInt(yearStr);
+                const m = parseInt(monthStr);
+                const d = parseInt(dayStr);
+
+                // Create UTC date
+                const memoDate = new Date(Date.UTC(y, m - 1, d));
+
+                // Comparison
+                if (memoDate >= startOfMonthUTC && memoDate < endOfMonthUTC) {
                     await prisma.bookingMemo.create({
                         data: {
                             date: memoDate,
@@ -437,7 +474,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                     memoCount++;
                 }
             }
-            console.log(`[Sync] Synced ${memoCount} Booking Memos.`);
+            console.log(`[Sync] Synced ${memoCount} Booking Memos for ${month}/${year}.`);
 
         } catch (error: any) {
             console.error("[Sync] Error syncing Booking Memos:", error.message);
