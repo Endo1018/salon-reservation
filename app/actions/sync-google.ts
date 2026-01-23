@@ -399,6 +399,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
         // --- SYNC BOOKING MEMOS (From 'Booking' sheet) ---
         let memoError = ''; // Track specific errors for user feedback
+        let memoCount = 0;
         try {
             console.log("[Sync] Fetching 'Booking' sheet for memos...");
             const memoResponse = await sheets.spreadsheets.values.get({
@@ -419,7 +420,6 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 }
             });
 
-            let memoCount = 0;
             for (const row of memoRows) {
                 // Col D(3)=Persons, E(4)=BookingDate, F(5)=Time, G(6)=Content
                 const personsStr = (row[3] as string)?.trim();
