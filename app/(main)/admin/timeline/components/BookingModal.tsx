@@ -97,7 +97,13 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
 
             try {
                 const available = await getAvailableStaff(defaultDate, startTime, duration);
-                setTherapists(available);
+                // Sort "Other" to bottom
+                const sorted = available.sort((a, b) => {
+                    if (a.id === 'other') return 1;
+                    if (b.id === 'other') return -1;
+                    return a.name.localeCompare(b.name);
+                });
+                setTherapists(sorted);
 
                 if (available.length === 0) {
                     setFetchError('No staff available for this time.');

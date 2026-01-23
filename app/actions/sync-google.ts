@@ -112,6 +112,21 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         }
 
         // 3. Prepare DB Data
+        // Ensure "Other" staff exists for manual selection
+        const otherStaff = await prisma.staff.findUnique({ where: { id: 'other' } });
+        if (!otherStaff) {
+            await prisma.staff.create({
+                data: {
+                    id: 'other',
+                    name: 'Other',
+                    role: 'THERAPIST',
+                    baseWage: 0,
+                    isActive: true
+                }
+            });
+            console.log("[Sync] Created 'Other' staff.");
+        }
+
         const staffList = await prisma.staff.findMany();
         const serviceList = await prisma.service.findMany();
         const staffMap = new Map<string, Staff>(staffList.map((s) => [s.name.trim().toLowerCase(), s]));
