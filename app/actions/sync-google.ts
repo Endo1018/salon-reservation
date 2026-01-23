@@ -285,8 +285,8 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                     let targetType2 = pool2Info ? pool2Info.type : 'seat';
 
                     if (isCombo && service1 && service2) {
-                        const name1Lower = service1.name.toLowerCase();
-                        if (name1Lower.includes('first time') || name1Lower.includes('champaca') || name1Lower.includes('advance') || name1Lower.includes('deluxe') || name1Lower.includes('special offer')) {
+                        if (name1Lower.includes('first time') || name1Lower.includes('champaca') || name1Lower.includes('advance') || name1Lower.includes('deluxe') || name1Lower.includes('special offer') || name1Lower.includes('v.i.p') || name1Lower.includes('vip')) {
+                            console.log(`[Sync] Forced Spa for 2nd part: ${service1.name}`);
                             targetPool2 = resourcePools.spa;
                             targetType2 = 'spa';
                         }
