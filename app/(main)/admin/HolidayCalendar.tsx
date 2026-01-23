@@ -99,12 +99,8 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
         weeks.push(currentWeek);
     }
 
-    // Calculate Sundays for the current month
-    let sundaysCount = 0;
-    for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(year, month - 1, d);
-        if (date.getDay() === 0) sundaysCount++;
-    }
+    // Calculate Required Holidays (26-Day Rule)
+    const requiredHolidays = Math.max(0, daysInMonth - 26);
 
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-full">
@@ -119,7 +115,7 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
                             <span>{month.toString().padStart(2, '0')}</span>
                         </h2>
                         <span className="text-sm font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded border border-slate-700">
-                            週休日数: <span className="text-[var(--primary)] text-lg">{sundaysCount}</span> 日
+                            週休日数: <span className="text-[var(--primary)] text-lg">{requiredHolidays}</span> 日
                         </span>
                     </div>
 
