@@ -279,6 +279,11 @@ function AdjustmentModal({ staffId, staff, year, month, initialData, onClose }: 
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 w-[600px] shadow-xl">
                 <h3 className="text-lg font-bold text-white mb-4">手当・控除修正 (手入力)</h3>
+                <div className="mb-4 text-[var(--primary)] font-bold text-xl flex items-center gap-2">
+                    <span className="text-white text-sm font-normal">Staff:</span>
+                    {staff.name}
+                    <span className="text-slate-500 text-xs font-normal">({staff.id})</span>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-3">
