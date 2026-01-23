@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { Staff, Shift } from '@prisma/client';
+import { isVietnamHoliday } from '@/lib/payroll-engine';
 
 type Props = {
     staffList: Staff[];
@@ -24,23 +25,6 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
             newMonth = 12;
         }
         router.push(`?year=${newYear}&month=${newMonth}`);
-    };
-
-    // Vietnam Holidays 2026
-    const isVietnamHoliday = (y: number, m: number, d: number) => {
-        if (y !== 2026) return false;
-        const dateStr = `${m}/${d}`; // m is 1-based
-        const holidays = [
-            '1/1', // New Year
-            '4/26', '4/27', // Hung Kings (26 Sun -> 27 Obs)
-            '4/30', // Reunification
-            '5/1', // Labor Day
-            '9/2', '9/3', // National Day
-        ];
-        // Tet Range: Feb 16-20
-        if (m === 2 && d >= 16 && d <= 20) return true;
-
-        return holidays.includes(dateStr);
     };
 
     // Calendar Logic
@@ -66,7 +50,7 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
         shiftsByDay[day].push({ staffId: shift.staffId, status: shift.status });
 
         if (statsByStaff[shift.staffId]) {
-            if (shift.status === 'Off') statsByStaff[shift.staffId].off++;
+            if (shift.status === 'Off' && !isVietnamHoliday(d)) statsByStaff[shift.staffId].off++;
             if (shift.status === 'AL') statsByStaff[shift.staffId].al++;
         }
     });
@@ -146,7 +130,7 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
                             if (!day) return <div key={`${wIdx}-${dIdx}`} className="bg-slate-900/20 border-b border-r border-slate-700/50" />;
 
                             const dayShifts = shiftsByDay[day] || [];
-                            const isHol = isVietnamHoliday(year, month, day);
+                            const isHol = isVietnamHoliday(new Date(year, month - 1, day));
 
                             return (
                                 <div key={day} className={`min-h-[100px] border-b border-r border-slate-700 p-2 transition-colors hover:bg-slate-750 relative group ${isHol ? 'bg-red-900/10' : ''}`}>

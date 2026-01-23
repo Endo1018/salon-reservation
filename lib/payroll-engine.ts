@@ -370,7 +370,7 @@ export function calculateStaffPayroll(
 }
 
 // Helper: Check if date is a Vietnam Holiday (2026)
-function isVietnamHoliday(date: Date): boolean {
+export function isVietnamHoliday(date: Date): boolean {
     const d = date.getDate();
     const m = date.getMonth() + 1; // 1-12
     const y = date.getFullYear();
