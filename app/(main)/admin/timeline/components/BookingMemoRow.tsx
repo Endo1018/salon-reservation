@@ -29,7 +29,7 @@ export default async function BookingMemoRow({ date }: Props) {
         }
     });
 
-    if (memos.length === 0) return null;
+    if (!memos || memos.length === 0) return null;
 
     return (
         <div className="flex items-center gap-4 py-2 px-1 text-sm border-b border-slate-800 bg-slate-900/30">
