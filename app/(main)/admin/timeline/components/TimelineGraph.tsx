@@ -78,7 +78,7 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
                                 {cat}
                             </div>
                             {resources.filter(r => r.category === cat).map(r => (
-                                <div key={r.id} className="h-16 border-b border-slate-800 flex items-center px-4 text-sm font-medium hover:bg-slate-800/30">
+                                <div key={r.id} className="h-12 border-b border-slate-800 flex items-center px-4 text-sm font-medium hover:bg-slate-800/30">
                                     {r.name}
                                 </div>
                             ))}
@@ -104,7 +104,7 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
                         <div key={cat}>
                             <div className="h-6 bg-slate-800/10"></div> {/* Spacer for Category Header */}
                             {resources.filter(r => r.category === cat).map(r => (
-                                <div key={r.id} className="h-16 border-b border-slate-800 relative group">
+                                <div key={r.id} className="h-12 border-b border-slate-800 relative group">
                                     {/* Grid Cells (15 min intervals) */}
                                     {hours.map(h => (
                                         [0, 15, 30, 45].map(m => (
