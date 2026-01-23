@@ -99,8 +99,10 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
         weeks.push(currentWeek);
     }
 
-    // Calculate Required Holidays (26-Day Rule)
-    const requiredHolidays = Math.max(0, daysInMonth - 26);
+    // Calculate Required Holidays
+    // Rule: Generally "DaysInMonth - 26".
+    // Exception: February uses standard 4 days (User specified).
+    const requiredHolidays = month === 2 ? 4 : Math.max(0, daysInMonth - 26);
 
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-full">

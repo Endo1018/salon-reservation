@@ -16,6 +16,11 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
     const router = useRouter();
     const daysInMonth = new Date(year, month, 0).getDate();
 
+    const getRequiredHolidays = (m: number, d: number) => {
+        if (m === 2) return 4;
+        return Math.max(0, d - 26);
+    };
+
     const handleMonthChange = (offset: number) => {
         let newYear = year;
         let newMonth = month + offset;
@@ -201,10 +206,10 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
                             <td className="px-4 py-3 text-center">{row.daysInMonth}</td>
                             <td className="px-4 py-3 text-center font-mono">{row.workDays}</td>
                             <td className="px-4 py-3 text-center font-mono">
-                                <span className={row.offCount < Math.max(0, row.daysInMonth - 26) ? 'text-red-400 font-bold' : 'text-green-400'}>
+                                <span className={row.offCount < getRequiredHolidays(month, row.daysInMonth) ? 'text-red-400 font-bold' : 'text-green-400'}>
                                     {row.offCount}
                                 </span>
-                                <span className="text-slate-500 text-xs"> / {Math.max(0, row.daysInMonth - 26)}</span>
+                                <span className="text-slate-500 text-xs"> / {getRequiredHolidays(month, row.daysInMonth)}</span>
                             </td>
                             <td className="px-4 py-3 text-center font-mono text-green-400">{row.alCount}</td>
                             <td className="px-4 py-3 text-center font-mono text-yellow-400">
