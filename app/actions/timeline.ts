@@ -318,10 +318,32 @@ export async function createBooking(data: {
 // --- EDIT ACTIONS ---
 
 export async function getBooking(id: string) {
-    return await prisma.booking.findUnique({
+    const main = await prisma.booking.findUnique({
         where: { id },
         include: { service: true }
     });
+    if (!main) return null;
+
+    let isHeadSpaFirst = false;
+    let overallStart = main.startAt;
+
+    if (main.comboLinkId) {
+        const group = await prisma.booking.findMany({
+            where: { comboLinkId: main.comboLinkId },
+            orderBy: { startAt: 'asc' }
+        });
+        if (group.length > 0) {
+            overallStart = group[0].startAt;
+            // Massage (isComboMain=true) is usually 1st. If 1st item is NOT Main, then Head Spa is First.
+            isHeadSpaFirst = !group[0].isComboMain;
+        }
+    }
+
+    return {
+        ...main,
+        overallStart,
+        isHeadSpaFirst
+    };
 }
 
 export async function updateBooking(id: string, data: {
@@ -332,6 +354,7 @@ export async function updateBooking(id: string, data: {
     staffId?: string | null;
     staffId2?: string | null;
     clientName?: string;
+    isHeadSpaFirst?: boolean; // New Param
 }) {
     // 1. Fetch Target
     const target = await prisma.booking.findUnique({
@@ -349,26 +372,12 @@ export async function updateBooking(id: string, data: {
 
     // 3. Calculate New Times
     const startAt = new Date(`${data.date}T${data.startTime}:00`);
-    // Use provided duration or service duration or existing duration
     const duration = data.duration || (service?.duration || 0);
     const endAt = new Date(startAt.getTime() + duration * 60000);
 
     // 4. Update Logic
     if (target.comboLinkId) {
         // --- COMBO UPDATE ---
-        // If Service Changed -> Complex! The split might change.
-        // If just time/staff changed -> Simple shift.
-
-        // For simplicity/robustness:
-        // If Service changed OR Duration is manually changed significantly, 
-        // we might be better off Re-creating the combo structure?
-        // But re-creating changes IDs.
-
-        // Strategy: 
-        // A. If Service is SAME -> Just shift times/staff.
-        // B. If Service CHANGED -> Check if it's still Combo.
-        //    If still Combo -> re-apply split logic to the existing records (update start/end/menuName).
-
         const isServiceChanged = data.serviceId && data.serviceId !== target.menuId;
 
         const legs = await prisma.booking.findMany({
@@ -376,47 +385,64 @@ export async function updateBooking(id: string, data: {
             orderBy: { startAt: 'asc' }
         });
 
-        const mainLeg = legs.find(l => l.isComboMain) || legs[0];
-        const subLeg = legs.find(l => !l.isComboMain) || legs[1] || null;
+        // Identify Legs based on isComboMain
+        const mainLeg = legs.find(l => l.isComboMain) || legs[0]; // Massage
+        const subLeg = legs.find(l => !l.isComboMain) || legs[1] || null; // Head Spa
 
         const updatePromises = [];
 
-        if (isServiceChanged && service?.type === 'Combo') {
-            // Re-calculate Split
+        // CALCULATE SPLIT TIMES
+        let massageStart = startAt;
+        let massageEnd = startAt;
+        let spaStart = startAt;
+        let spaEnd = endAt;
+
+        if (service?.type === 'Combo') {
             const mDur = service.massageDuration || 0;
-            // const hDur = service.headSpaDuration || 0; // Not explicitly used for endAt calc if we rely on loop
+            const hDur = service.headSpaDuration || 0;
 
-            // New Massage End
-            const massageEnd = new Date(startAt.getTime() + mDur * 60000);
+            if (data.isHeadSpaFirst) {
+                // HEAD SPA FIRST
+                spaStart = startAt;
+                spaEnd = new Date(startAt.getTime() + hDur * 60000);
+                massageStart = spaEnd;
+                massageEnd = endAt;
+            } else {
+                // MASSAGE FIRST (Default)
+                massageStart = startAt;
+                massageEnd = new Date(startAt.getTime() + mDur * 60000);
+                spaStart = massageEnd;
+                spaEnd = endAt;
+            }
+        }
 
-            // Update Main Leg
+        if (isServiceChanged && service?.type === 'Combo') {
+            // Update Main Leg (Massage)
             if (mainLeg) {
                 updatePromises.push(prisma.booking.update({
                     where: { id: mainLeg.id },
                     data: {
                         menuId: service.id,
                         menuName: `${service.name} (Massage)`,
-                        startAt: startAt,
+                        startAt: massageStart,
                         endAt: massageEnd
                     }
                 }));
             }
-
-            // Update Sub Leg
+            // Update Sub Leg (Spa)
             if (subLeg) {
                 updatePromises.push(prisma.booking.update({
                     where: { id: subLeg.id },
                     data: {
                         menuId: service.id,
                         menuName: `${service.name} (Head Spa)`,
-                        startAt: massageEnd,
-                        endAt: endAt // Total End
+                        startAt: spaStart,
+                        endAt: spaEnd
                     }
                 }));
             }
         } else if (isServiceChanged && service?.type !== 'Combo') {
-            // CONVERT COMBO -> SINGLE?
-            // Delete subLeg, update mainLeg to Single
+            // CONVERT COMBO -> SINGLE
             if (subLeg) {
                 updatePromises.push(prisma.booking.delete({ where: { id: subLeg.id } }));
             }
@@ -434,30 +460,18 @@ export async function updateBooking(id: string, data: {
                 }));
             }
         } else {
-            // Service NOT Changed (Just Time/Staff/Duration edit)
-            // If Duration Changed manually (but Same Service), how do we split?
-            // Assume we keep the relative ratio or just extend the LAST leg?
-            // Let's just shift basic time for now. If duration changed, we might have issue.
-            // Simplified: Re-calc based on stored service durations (if possible) or just shift.
-
-            // If user manually changed duration for a Combo, we don't know which leg to extend.
-            // Default: Extend the 2nd leg (Head Spa) or just ignore manual duration for Combo split?
-
-            // Safe bet: calculate standard split based on Service Definition again using new StartTime.
+            // Service NOT Changed (Just Time/Staff/Duration/Order edit)
             if (service?.type === 'Combo') {
-                const mDur = service.massageDuration || 0;
-                const massageEnd = new Date(startAt.getTime() + mDur * 60000);
-
                 if (mainLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: mainLeg.id },
-                        data: { startAt: startAt, endAt: massageEnd }
+                        data: { startAt: massageStart, endAt: massageEnd }
                     }));
                 }
                 if (subLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: subLeg.id },
-                        data: { startAt: massageEnd, endAt: endAt }
+                        data: { startAt: spaStart, endAt: spaEnd }
                     }));
                 }
             }
