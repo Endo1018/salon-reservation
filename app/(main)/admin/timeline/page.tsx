@@ -6,6 +6,8 @@ import DateController from './components/DateController';
 import StaffAttendanceRow from './components/StaffAttendanceRow';
 import GoogleSyncButton from './components/GoogleSyncButton';
 
+import BookingMemoRow from './components/BookingMemoRow';
+
 type Props = {
     searchParams: { date?: string };
 };
@@ -36,6 +38,9 @@ export default async function TimelineDashboard(props: Props) {
 
             {/* Staff Row */}
             <StaffAttendanceRow date={dateStr} />
+
+            {/* Booking Memos */}
+            <BookingMemoRow date={dateStr} />
 
             {/* Main Graph Area */}
             <div className="flex-1 overflow-hidden p-4 flex flex-col">
