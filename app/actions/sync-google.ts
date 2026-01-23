@@ -5,10 +5,9 @@ import { google } from 'googleapis';
 import { revalidatePath } from 'next/cache';
 import { Service, Staff } from '@prisma/client';
 
-// Configuration
-const SHEET_ID = process.env.SPREADSHEET_ID || '1zFXo9CvS_RHd8EbN6Ae3Tlh31MbGCnYBxzk-5q1FZ5k';
-const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL || 'client-email-private-key@primal-result-309908.iam.gserviceaccount.com';
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+// Configuration (Moved inside function for runtime safety)
+
+// Correction Maps
 
 // Correction Maps
 const nameCorrections: Record<string, string> = {
@@ -29,6 +28,10 @@ const resourcePools = {
 // For simpler logic, we scoped it inside the function.
 
 export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
+    const SHEET_ID = process.env.SPREADSHEET_ID || '1zFXo9CvS_RHd8EbN6Ae3Tlh31MbGCnYBxzk-5q1FZ5k';
+    const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL || 'client-email-private-key@primal-result-309908.iam.gserviceaccount.com';
+    const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
     if (!SHEET_ID || !GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY) {
         console.error("Missing Creds", { SHEET_ID, GOOGLE_CLIENT_EMAIL });
         return { success: false, message: 'Google Sheets Credentials Missing' };
