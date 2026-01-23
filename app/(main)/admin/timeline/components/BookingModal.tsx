@@ -25,6 +25,7 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
     const [clientName, setClientName] = useState('');
     const [duration, setDuration] = useState(60);
     const [isAroma, setIsAroma] = useState(false); // New Aroma Checkbox State
+    const [isHeadSpaFirst, setIsHeadSpaFirst] = useState(false); // New Head Spa First State
     const [startTime, setStartTime] = useState(defaultTime); // New State
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(false); // For fetching edit data
@@ -56,11 +57,12 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                         setServiceId(b.menuId);
                         setClientName(b.clientName || '');
                         setStaffId(b.staffId || '');
-                        // Parse Time
-                        const d = new Date(b.startAt);
+                        // Parse Time (Use overall start if present aka Combo, else startAt)
+                        const d = new Date(b.overallStart || b.startAt);
                         const hh = d.getHours().toString().padStart(2, '0');
                         const mm = d.getMinutes().toString().padStart(2, '0');
                         setStartTime(`${hh}:${mm}`);
+                        setIsHeadSpaFirst(!!b.isHeadSpaFirst); // Load Order flag
                     }
                 } catch (e) {
                     console.error(e);
@@ -132,6 +134,7 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                     staffId: staffId || null,
                     staffId2: staffId2 || null,
                     clientName,
+                    isHeadSpaFirst // Pass flag
                     // isAroma? Update not yet supported in UI for edit, but ideally should be.
                     // For now, focusing on Create.
                 });
@@ -145,7 +148,8 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                     staffId: staffId || undefined,
                     staffId2: staffId2 || undefined,
                     clientName,
-                    isAroma
+                    isAroma,
+                    isHeadSpaFirst // Pass flag
                 });
             }
             onClose();
@@ -165,6 +169,7 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                 setDuration(s.duration);
                 // Reset isAroma when service changes
                 setIsAroma(false);
+                setIsHeadSpaFirst(false);
             }
         }
     }, [serviceId, services, editBookingId]);
@@ -211,47 +216,59 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
 
                         {/* Staff Selection */}
                         {services.find(s => s.id === serviceId)?.type === 'Combo' ? (
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Therapist 1 (Massage)</label>
-                                    <select
-                                        className="w-full bg-slate-800 border-slate-700 rounded p-2"
-                                        value={staffId} onChange={e => setStaffId(e.target.value)}
-                                        disabled={isFetchingStaff}
-                                    >
-                                        <option value="">Any / Unassigned</option>
-                                        {therapists.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
-
-                                    {/* Aroma Checkbox for Advance/Deluxe */}
-                                    {(services.find(s => s.id === serviceId)?.name.includes('Advance') ||
-                                        services.find(s => s.id === serviceId)?.name.includes('Deluxe')) && (
-                                            <div className="mt-2 flex items-center gap-2">
-                                                <input
-                                                    id="use-aroma"
-                                                    type="checkbox"
-                                                    className="w-4 h-4 bg-slate-800 border-slate-700 rounded"
-                                                    checked={isAroma}
-                                                    onChange={e => setIsAroma(e.target.checked)}
-                                                />
-                                                <label htmlFor="use-aroma" className="text-sm text-slate-300 select-none">Use Aroma Room</label>
-                                            </div>
-                                        )}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="head-spa-first"
+                                        type="checkbox"
+                                        className="w-4 h-4 bg-slate-800 border-slate-700 rounded"
+                                        checked={isHeadSpaFirst}
+                                        onChange={e => setIsHeadSpaFirst(e.target.checked)}
+                                    />
+                                    <label htmlFor="head-spa-first" className="text-sm text-slate-300 select-none">Head Spa First</label>
                                 </div>
-                                <div>
-                                    <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Therapist 2 (Head Spa)</label>
-                                    <select
-                                        className="w-full bg-slate-800 border-slate-700 rounded p-2"
-                                        value={staffId2} onChange={e => setStaffId2(e.target.value)}
-                                        disabled={isFetchingStaff}
-                                    >
-                                        <option value="">Same as Therapist 1</option>
-                                        {therapists.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Therapist 1 (Massage)</label>
+                                        <select
+                                            className="w-full bg-slate-800 border-slate-700 rounded p-2"
+                                            value={staffId} onChange={e => setStaffId(e.target.value)}
+                                            disabled={isFetchingStaff}
+                                        >
+                                            <option value="">Any / Unassigned</option>
+                                            {therapists.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+
+                                        {/* Aroma Checkbox for Advance/Deluxe */}
+                                        {(services.find(s => s.id === serviceId)?.name.includes('Advance') ||
+                                            services.find(s => s.id === serviceId)?.name.includes('Deluxe')) && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        id="use-aroma"
+                                                        type="checkbox"
+                                                        className="w-4 h-4 bg-slate-800 border-slate-700 rounded"
+                                                        checked={isAroma}
+                                                        onChange={e => setIsAroma(e.target.checked)}
+                                                    />
+                                                    <label htmlFor="use-aroma" className="text-sm text-slate-300 select-none">Use Aroma Room</label>
+                                                </div>
+                                            )}
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Therapist 2 (Head Spa)</label>
+                                        <select
+                                            className="w-full bg-slate-800 border-slate-700 rounded p-2"
+                                            value={staffId2} onChange={e => setStaffId2(e.target.value)}
+                                            disabled={isFetchingStaff}
+                                        >
+                                            <option value="">Same as Therapist 1</option>
+                                            {therapists.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
