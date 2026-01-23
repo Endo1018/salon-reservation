@@ -122,7 +122,7 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
                                     {/* Bookings */}
                                     {bookings.filter(b => b.resourceId === r.id).map(b => (
                                         <div key={b.id}
-                                            className={`absolute top-1 bottom-1 rounded text-white text-xs p-1 overflow-hidden shadow-sm border border-white/20 select-none hover:brightness-110 z-10 group/booking ${getStaffColorClass(b.staffName)} cursor-pointer`}
+                                            className={`absolute top-1 bottom-1 rounded text-white text-xs px-1 py-0.5 overflow-hidden shadow-sm border border-white/20 select-none hover:brightness-110 z-10 group/booking ${getStaffColorClass(b.staffName)} cursor-pointer flex flex-col justify-center`}
                                             style={{
                                                 left: getPosition(new Date(b.startAt)),
                                                 width: getWidth(new Date(b.startAt), new Date(b.endAt))
@@ -133,11 +133,11 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
                                             }}
                                             title={`${b.clientName} (${b.menuName}) w/ ${b.staffName}`}
                                         >
-                                            <div className="font-bold truncate text-[10px]">
+                                            <div className="font-bold truncate text-[10px] leading-3">
                                                 {new Date(b.startAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} - {new Date(b.endAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                                             </div>
-                                            <div className="truncate text-[10px]">{b.menuName}</div>
-                                            <div className="truncate text-[10px] opacity-90">{b.staffName}</div>
+                                            <div className="truncate text-[9px] leading-none mt-0.5">{b.menuName}</div>
+                                            <div className="truncate text-[9px] leading-none opacity-90">{b.staffName}</div>
                                         </div>
                                     ))}
                                 </div>
