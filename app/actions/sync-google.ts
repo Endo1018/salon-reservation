@@ -398,6 +398,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         } // end loop
 
         // --- SYNC BOOKING MEMOS (From 'Booking' sheet) ---
+        let memoError = ''; // Track specific errors for user feedback
         try {
             console.log("[Sync] Fetching 'Booking' sheet for memos...");
             const memoResponse = await sheets.spreadsheets.values.get({
@@ -481,12 +482,11 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
         } catch (error: any) {
             console.error("[Sync] Error syncing Booking Memos:", error.message);
-            // Don't fail the whole sync, just log
+            memoError = error.message;
         }
 
-
         revalidatePath('/admin/timeline');
-        return { success: true, message: `Sync Complete: ${successCount} Imported, ${errorCount} Errors` };
+        return { success: true, message: `Sync Complete: ${successCount} Imported, ${errorCount} Errors. Memos: ${memoCount}${memoError ? ` (Error: ${memoError})` : ''}` };
 
     } catch (e: any) {
         console.error(e);
