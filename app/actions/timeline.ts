@@ -380,6 +380,7 @@ export async function updateBooking(id: string, data: {
 
     // Convert to UTC by subtracting 7 hours
     const startAt = new Date(Date.UTC(yyyy, mm - 1, dd, hours - 7, mins));
+    console.log(`[updateBooking] Input: ${data.startTime} (GMT+7) -> UTC: ${startAt.toISOString()}`); // Force Deploy Check
     const duration = data.duration || (service?.duration || 0);
     const endAt = new Date(startAt.getTime() + duration * 60000);
 
