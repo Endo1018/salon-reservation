@@ -178,8 +178,12 @@ export async function createBooking(data: {
     isAroma?: boolean; // New Flag
 }) {
     try {
-        // Calculate Start/End (Total)
-        const startAt = new Date(`${data.date}T${data.startTime}:00`);
+        // Calculate Start/End (Total) - Input is Vietnam Time (GMT+7)
+        const [yyyy, mm, dd] = data.date.split('-').map(Number);
+        const [hours, mins] = data.startTime.split(':').map(Number);
+
+        // Convert to UTC by subtracting 7 hours
+        const startAt = new Date(Date.UTC(yyyy, mm - 1, dd, hours - 7, mins));
         const endAt = new Date(startAt.getTime() + data.duration * 60000);
 
         // Fetch details
@@ -370,8 +374,12 @@ export async function updateBooking(id: string, data: {
         if (!service) throw new Error('Service not found');
     }
 
-    // 3. Calculate New Times
-    const startAt = new Date(`${data.date}T${data.startTime}:00`);
+    // 3. Calculate New Times - Input is Vietnam Time (GMT+7)
+    const [yyyy, mm, dd] = data.date.split('-').map(Number);
+    const [hours, mins] = data.startTime.split(':').map(Number);
+
+    // Convert to UTC by subtracting 7 hours
+    const startAt = new Date(Date.UTC(yyyy, mm - 1, dd, hours - 7, mins));
     const duration = data.duration || (service?.duration || 0);
     const endAt = new Date(startAt.getTime() + duration * 60000);
 
