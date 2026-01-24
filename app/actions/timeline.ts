@@ -25,21 +25,17 @@ export type TimelineBooking = {
 // --- READ ACTIONS ---
 
 export async function getAvailableStaff(dateStr: string, startTime: string, duration: number) {
-    // 1. Calculate Time Range
     const startAt = new Date(`${dateStr}T${startTime}:00`);
     const endAt = new Date(startAt.getTime() + duration * 60000);
 
-    // 2. Fetch All Therapists
     const therapists = await prisma.staff.findMany({
         where: { isActive: true, role: 'THERAPIST' },
         select: { id: true, name: true }
     });
 
-    // 3. Parallel Fetch: Shifts & Bookings
     const therapistIds = therapists.map(t => t.id);
 
     const [shifts, conflictingBookings] = await Promise.all([
-        // Fetch Shifts
         prisma.shift.findMany({
             where: {
                 date: {
@@ -49,7 +45,6 @@ export async function getAvailableStaff(dateStr: string, startTime: string, dura
                 staffId: { in: therapistIds }
             }
         }),
-        // Fetch Conflicting Bookings
         prisma.booking.findMany({
             where: {
                 startAt: { lt: endAt },
@@ -62,43 +57,20 @@ export async function getAvailableStaff(dateStr: string, startTime: string, dura
 
     const busyStaffIds = new Set(conflictingBookings.map(b => b.staffId));
 
-    // 5. Filter Result
-    // Available if:
-    // - Has a shift that is NOT 'OFF'/'AL'/'Holiday' (Strict Policy)
-    // - OR (if no shift record) -> Default Available? (System policy: default available unless OFF)
-    // - AND Not in busyStaffIds
-
-    // DEBUG LOGGING
-    console.log(`[getAvailableStaff] Date: ${dateStr}, Time: ${startTime}`);
-
-    // Debug: Log all shifts found to verify Prisma output
-    // shifts.forEach(s => console.log(`Shift: ${s.staffId} = ${s.status}`));
-
     const available = therapists.filter(t => {
-        // Check Shift
         const shift = shifts.find(s => s.staffId === t.id);
-        const rawStatus = shift?.status; // Preserving raw case/value
+        const rawStatus = shift?.status;
         const statusUpper = rawStatus?.toUpperCase();
 
-        // Treat '-' or undefined as Available
         if (rawStatus === '-' || !rawStatus) return true;
 
         const isOff = statusUpper === 'OFF' || statusUpper === 'AL' || statusUpper === 'HOLIDAY' || statusUpper === 'ABSENT';
+        if (isOff) return false;
 
-        if (isOff) {
-            console.log(`[Debug Staff] ${t.name} excluded due to Shift: ${rawStatus}`);
-            return false;
-        }
-
-        // Check Bookings
-        if (busyStaffIds.has(t.id)) {
-            console.log(`[Debug Staff] ${t.name} excluded due to Booking Overlap`);
-            return false;
-        }
+        if (busyStaffIds.has(t.id)) return false;
 
         return true;
     });
-    console.log(`[getAvailableStaff] Returning ${available.length} staff.`);
     return available;
 }
 
@@ -110,7 +82,6 @@ export async function getActiveTherapists() {
 }
 
 export async function getTimelineData(dateStr: string) {
-    // 1. Define Resources
     const resources: TimelineResource[] = [
         { id: 'spa-1', name: 'Spa 1', category: 'HEAD SPA' },
         { id: 'spa-2', name: 'Spa 2', category: 'HEAD SPA' },
@@ -128,13 +99,11 @@ export async function getTimelineData(dateStr: string) {
         { id: 'seat-4', name: 'Massage Seat 4', category: 'MASSAGE SEAT' },
         { id: 'seat-5', name: 'Massage Seat 5', category: 'MASSAGE SEAT' },
 
-        // Overflow Resources (Dynamically added for view)
         { id: 'overflow-spa', name: '⚠️ Overflow Spa', category: 'HEAD SPA' },
         { id: 'overflow-aroma', name: '⚠️ Overflow Aroma', category: 'AROMA ROOM' },
         { id: 'overflow-seat', name: '⚠️ Overflow Seat', category: 'MASSAGE SEAT' },
     ];
 
-    // 2. Fetch Bookings for the Date
     const startOfDay = new Date(`${dateStr}T00:00:00`);
     const endOfDay = new Date(`${dateStr}T23:59:59`);
 
@@ -172,82 +141,71 @@ export async function createBooking(data: {
     startTime: string;  // HH:mm
     duration: number;   // minutes
     serviceId: string;
-    staffId?: string | null; // Make Optional
-    staffId2?: string | null; // For 2nd leg of Combo
+    staffId?: string | null;
+    staffId2?: string | null;
     customerId?: string;
     clientName?: string;
-    isAroma?: boolean; // New Flag
+    isAroma?: boolean;
+    isHeadSpaFirstOrder?: boolean;
 }) {
     try {
-        // Calculate Start/End (Total) - Input is Vietnam Time (GMT+7)
         const [yyyy, mm, dd] = data.date.split('-').map(Number);
         const [hours, mins] = data.startTime.split(':').map(Number);
 
-        // Convert to UTC by subtracting 7 hours
+        // Timezone Fix: GMT+7 input -> UTC
         const startAt = new Date(Date.UTC(yyyy, mm - 1, dd, hours - 7, mins));
         const endAt = new Date(startAt.getTime() + data.duration * 60000);
 
-        // Fetch details
         const service = await prisma.service.findUnique({ where: { id: data.serviceId } });
         if (!service) throw new Error('Service not found');
 
-        // Handle Combo
-        if (service.type && service.type.trim().toLowerCase() === 'combo') {
+        // Case-insensitive Combo check
+        const isCombo = service.type && service.type.trim().toLowerCase() === 'combo';
+
+        if (isCombo) {
             const comboLinkId = crypto.randomUUID();
             const mDur = service.massageDuration || 0;
             const hDur = service.headSpaDuration || 0;
 
             let massageResId = '';
             let headSpaResId = '';
-            const massageEnd = new Date(startAt.getTime() + mDur * 60000);
 
-            if (data.resourceId.startsWith('spa-')) {
-                // User from Head Spa -> 2nd leg
-                headSpaResId = data.resourceId;
+            // Logic for resource assignment (simplified from prior versions)
+            let massageStart = startAt;
+            let massageEnd = new Date(startAt.getTime() + mDur * 60000);
+            let spaStart = massageEnd;
+            let spaEnd = endAt; // Standard Order
 
-                // If Aroma requested OR Service is naturally Aroma
-                const useAroma = data.isAroma || service.name.includes('Aroma') || service.name.includes('Couple') || service.name.includes('CHAMPACA'); // Case insensitive check handled by includes logic usually, but here names are standardized
-
-                if (useAroma) {
-                    massageResId = 'aroma-a1';
-                } else {
-                    massageResId = 'seat-1';
-                }
-            } else {
-                // User from Massage -> 1st leg
-                massageResId = data.resourceId; // Keep user selection if they clicked a specific row? 
-                // Wait, if they clicked a Seat row but checked Aroma, we should probably MOVE it to Aroma?
-                // But typically users click the row they want.
-                // However, if they are creating from "New Booking" button (no specific resource?), or if valid check overrides.
-
-                const useAroma = data.isAroma || service.name.includes('Aroma') || service.name.includes('Couple') || service.name.includes('CHAMPACA');
-
-                if (useAroma && !massageResId.startsWith('aroma-')) {
-                    massageResId = 'aroma-a1';
-                } else if (!useAroma && massageResId.startsWith('aroma-') && !service.name.includes('Aroma')) {
-                    // Checkbox NOT checked, but clicked Aroma row? 
-                    // Maybe keep it? But request implies strict toggle.
-                    // Let's trust the flag if explicitly provided/relevant.
-                    // Actually, if `data.isAroma` is TRUE, force Aroma.
-                    if (data.isAroma) massageResId = 'aroma-a1';
-                }
-
-                // If no specific resource ID passed (e.g. global create), default logic applies.
-                if (!massageResId) {
-                    massageResId = useAroma ? 'aroma-a1' : 'seat-1';
-                }
-
-                headSpaResId = 'spa-1';
+            if (data.isHeadSpaFirstOrder) {
+                spaStart = startAt;
+                spaEnd = new Date(startAt.getTime() + hDur * 60000);
+                massageStart = spaEnd;
+                massageEnd = endAt;
             }
 
-            // Create Booking A (Massage)
+            // Resource Logic
+            if (data.resourceId.startsWith('spa-')) {
+                headSpaResId = data.resourceId;
+                const useAroma = data.isAroma || service.name.includes('Aroma') || service.name.includes('Couple') || service.name.includes('CHAMPACA');
+                massageResId = useAroma ? 'aroma-a1' : 'seat-1';
+                // Auto-find free for massage?
+                const freeM = await findFreeResource(useAroma ? resourcePools.aroma : resourcePools.seat, massageStart, massageEnd);
+                if (freeM) massageResId = freeM;
+            } else {
+                massageResId = data.resourceId;
+                headSpaResId = 'spa-1';
+                const freeS = await findFreeResource(resourcePools.spa, spaStart, spaEnd);
+                if (freeS) headSpaResId = freeS;
+            }
+
+            // Booking A (Massage)
             await prisma.booking.create({
                 data: {
                     menuId: service.id,
                     menuName: `${service.name} (Massage)`,
                     staffId: data.staffId || null,
                     resourceId: massageResId,
-                    startAt: startAt,
+                    startAt: massageStart,
                     endAt: massageEnd,
                     status: 'Confirmed',
                     clientName: data.clientName || 'Walk-in',
@@ -257,15 +215,15 @@ export async function createBooking(data: {
                 }
             });
 
-            // Create Booking B (Head Spa)
+            // Booking B (Head Spa)
             await prisma.booking.create({
                 data: {
                     menuId: service.id,
                     menuName: `${service.name} (Head Spa)`,
-                    staffId: data.staffId2 || data.staffId || null, // Use 2nd staff if provided
+                    staffId: data.staffId2 || data.staffId || null,
                     resourceId: headSpaResId,
-                    startAt: massageEnd,
-                    endAt: endAt,
+                    startAt: spaStart,
+                    endAt: spaEnd,
                     status: 'Confirmed',
                     clientName: data.clientName || 'Walk-in',
                     customerId: data.customerId,
@@ -275,23 +233,12 @@ export async function createBooking(data: {
             });
 
         } else {
-            // Single Booking Resource Logic
+            // Single
             let targetResourceId = data.resourceId;
-            const serviceCat = service.category;
+            // Check availability?
+            // If Create, we usually respect user click, but if busy, could hint.
+            // For now keep standard logic.
 
-            let validPrefix = '';
-            if (serviceCat === 'Aroma') validPrefix = 'aroma-';
-            else if (serviceCat === 'Head Spa' || serviceCat === 'Headspa') validPrefix = 'spa-';
-            else if (serviceCat === 'Massage' || serviceCat === 'Foot') validPrefix = 'seat-';
-
-            if (validPrefix && !targetResourceId.startsWith(validPrefix)) {
-                if (validPrefix === 'aroma-') targetResourceId = 'aroma-a1';
-                else if (validPrefix === 'spa-') targetResourceId = 'spa-1';
-                else if (validPrefix === 'seat-') targetResourceId = 'seat-1';
-                console.log(`Resource corrected: ${data.resourceId} -> ${targetResourceId}`);
-            }
-
-            // Single Booking
             await prisma.booking.create({
                 data: {
                     menuId: service.id,
@@ -310,14 +257,9 @@ export async function createBooking(data: {
         revalidatePath('/admin/timeline');
     } catch (e) {
         console.error("Booking Creation Failed:", e);
-        try {
-            const fs = require('fs');
-            fs.appendFileSync('/tmp/booking_errors.log', `[${new Date().toISOString()}] Error: ${e}\nData: ${JSON.stringify(data)}\n`);
-        } catch (_) { }
         throw e;
     }
 }
-
 
 
 // --- EDIT ACTIONS ---
@@ -339,7 +281,7 @@ export async function getBooking(id: string) {
         });
         if (group.length > 0) {
             overallStart = group[0].startAt;
-            // Massage (isComboMain=true) is usually 1st. If 1st item is NOT Main, then Head Spa is First.
+            // If main leg (Massage) is NOT first, then Head Spa is first
             isHeadSpaFirst = !group[0].isComboMain;
         }
     }
@@ -359,8 +301,10 @@ export async function updateBooking(id: string, data: {
     staffId?: string | null;
     staffId2?: string | null;
     clientName?: string;
-    isHeadSpaFirstOrder?: boolean; // Renamed to force refresh
+    isHeadSpaFirstOrder?: boolean;
 }) {
+    console.log("[updateBooking] Payload:", JSON.stringify(data));
+
     // 1. Fetch Target
     const target = await prisma.booking.findUnique({
         where: { id },
@@ -368,24 +312,23 @@ export async function updateBooking(id: string, data: {
     });
     if (!target) throw new Error('Booking not found');
 
-    // 2. Fetch New Service (if changed)
+    // 2. Fetch New Service
     let service = target.service;
-    console.log("[TIMESTAMP_DEBUG] updateBooking Payload:", JSON.stringify(data));
     if (data.serviceId && data.serviceId !== target.menuId) {
         service = await prisma.service.findUnique({ where: { id: data.serviceId } });
         if (!service) throw new Error('Service not found');
     }
 
-    // 3. Calculate New Times - Input is Vietnam Time (GMT+7)
+    // 3. Time Calc (UTC)
     const [yyyy, mm, dd] = data.date.split('-').map(Number);
     const [hours, mins] = data.startTime.split(':').map(Number);
-
-    // Convert to UTC by subtracting 7 hours
     const startAt = new Date(Date.UTC(yyyy, mm - 1, dd, hours - 7, mins));
-    console.log(`[updateBooking] Input: ${data.startTime} (GMT+7) -> UTC: ${startAt.toISOString()}`); // Force Deploy Check
 
+    // Duration Logic
     let duration = data.duration || (service?.duration || 0);
-    if (service?.type?.trim().toLowerCase() === 'combo') {
+    const isCombo = service?.type?.trim().toLowerCase() === 'combo';
+
+    if (isCombo) {
         const sumDur = (service.massageDuration || 0) + (service.headSpaDuration || 0);
         if (sumDur > 0) duration = sumDur;
         console.log(`[updateBooking] Enforcing Combo Duration: ${duration}`);
@@ -402,19 +345,18 @@ export async function updateBooking(id: string, data: {
             orderBy: { startAt: 'asc' }
         });
 
-        // Identify Legs based on isComboMain
-        const mainLeg = legs.find(l => l.isComboMain) || legs[0]; // Massage
-        const subLeg = legs.find(l => !l.isComboMain) || legs[1] || null; // Head Spa
+        const mainLeg = legs.find(l => l.isComboMain) || legs[0];
+        const subLeg = legs.find(l => !l.isComboMain) || legs[1] || null;
 
         const updatePromises = [];
 
-        // CALCULATE SPLIT TIMES
+        // Calculate Split Times
         let massageStart = startAt;
         let massageEnd = startAt;
         let spaStart = startAt;
         let spaEnd = endAt;
 
-        if (service?.type?.trim().toLowerCase() === 'combo') {
+        if (isCombo) {
             const mDur = service.massageDuration || 0;
             const hDur = service.headSpaDuration || 0;
 
@@ -425,7 +367,7 @@ export async function updateBooking(id: string, data: {
                 massageStart = spaEnd;
                 massageEnd = endAt;
             } else {
-                // MASSAGE FIRST (Default)
+                // MASSAGE FIRST
                 massageStart = startAt;
                 massageEnd = new Date(startAt.getTime() + mDur * 60000);
                 spaStart = massageEnd;
@@ -434,40 +376,34 @@ export async function updateBooking(id: string, data: {
         }
 
         // --- AUTO REALLOCATION ---
-        let finalMassageResId = mainLeg?.resourceId;
+        let finalMassageResId = mainLeg?.resourceId || 'seat-1';
         if (mainLeg) {
             const isFree = await isResourceFree(mainLeg.resourceId, massageStart, massageEnd, mainLeg.id);
             if (!isFree) {
-                console.log(`[AutoRealloc] Conflict detected for Main (${mainLeg.resourceId})`);
+                console.log(`[AutoRealloc] Conflict Main ${mainLeg.resourceId}`);
                 const poolInfo = getPoolByResourceId(mainLeg.resourceId);
                 if (poolInfo) {
                     const newRes = await findFreeResource(poolInfo.pool, massageStart, massageEnd, mainLeg.id);
-                    if (newRes) {
-                        console.log(`[AutoRealloc] Moved Main to ${newRes}`);
-                        finalMassageResId = newRes;
-                    }
+                    if (newRes) finalMassageResId = newRes;
                 }
             }
         }
 
-        let finalSpaResId = subLeg?.resourceId;
+        let finalSpaResId = subLeg?.resourceId || 'spa-1';
         if (subLeg) {
             const isFree = await isResourceFree(subLeg.resourceId, spaStart, spaEnd, subLeg.id);
             if (!isFree) {
-                console.log(`[AutoRealloc] Conflict detected for Sub (${subLeg.resourceId})`);
+                console.log(`[AutoRealloc] Conflict Sub ${subLeg.resourceId}`);
                 const poolInfo = getPoolByResourceId(subLeg.resourceId);
                 if (poolInfo) {
                     const newRes = await findFreeResource(poolInfo.pool, spaStart, spaEnd, subLeg.id);
-                    if (newRes) {
-                        console.log(`[AutoRealloc] Moved Sub to ${newRes}`);
-                        finalSpaResId = newRes;
-                    }
+                    if (newRes) finalSpaResId = newRes;
                 }
             }
         }
 
-        if (isServiceChanged && service?.type?.trim().toLowerCase() === 'combo') {
-            // Update Main Leg (Massage)
+        // APPLY UPDATES
+        if (isServiceChanged && isCombo) {
             if (mainLeg) {
                 updatePromises.push(prisma.booking.update({
                     where: { id: mainLeg.id },
@@ -480,7 +416,6 @@ export async function updateBooking(id: string, data: {
                     }
                 }));
             }
-            // Update Sub Leg (Spa)
             if (subLeg) {
                 updatePromises.push(prisma.booking.update({
                     where: { id: subLeg.id },
@@ -493,11 +428,9 @@ export async function updateBooking(id: string, data: {
                     }
                 }));
             }
-        } else if (isServiceChanged && service?.type?.trim().toLowerCase() !== 'combo') {
-            // CONVERT COMBO -> SINGLE
-            if (subLeg) {
-                updatePromises.push(prisma.booking.delete({ where: { id: subLeg.id } }));
-            }
+        } else if (isServiceChanged && !isCombo) {
+            // Combo -> Single
+            if (subLeg) updatePromises.push(prisma.booking.delete({ where: { id: subLeg.id } }));
             if (mainLeg) {
                 updatePromises.push(prisma.booking.update({
                     where: { id: mainLeg.id },
@@ -506,15 +439,15 @@ export async function updateBooking(id: string, data: {
                         menuName: service!.name,
                         startAt: startAt,
                         endAt: endAt,
-                        comboLinkId: null, // Unlink
+                        comboLinkId: null,
                         isComboMain: false,
                         resourceId: finalMassageResId
                     }
                 }));
             }
         } else {
-            // Service NOT Changed (Just Time/Staff/Duration/Order edit)
-            if (service?.type?.trim().toLowerCase() === 'combo') {
+            // Service NOT Changed
+            if (isCombo) {
                 if (mainLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: mainLeg.id },
@@ -536,7 +469,7 @@ export async function updateBooking(id: string, data: {
                     }));
                 }
             } else {
-                // Single Service Update (Service Not Changed)
+                // Single Service Update
                 if (mainLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: mainLeg.id },
@@ -550,7 +483,7 @@ export async function updateBooking(id: string, data: {
             }
         }
 
-        // Common Updates (Staff / Client)
+        // Common Staff/Client Updates
         if (data.staffId !== undefined && mainLeg) {
             updatePromises.push(prisma.booking.update({ where: { id: mainLeg.id }, data: { staffId: data.staffId } }));
         }
@@ -565,12 +498,8 @@ export async function updateBooking(id: string, data: {
 
     } else {
         // --- SINGLE UPDATE ---
-        // Warning: If switching Single -> Combo?
-        if (service?.type === 'Combo') {
-            // Complex upgrade. Easiest is delete & recreate logic, but we want to preserve ID if possible.
-            // Actually, `createBooking` does heavy lifting. 
-            // For now, let's treat it as: Update THIS record to be Main, and Create new Sub record.
-
+        // (Convert Single -> Combo if needed)
+        if (isCombo) {
             const comboLinkId = crypto.randomUUID();
             const mDur = service.massageDuration || 0;
             const massageEnd = new Date(startAt.getTime() + mDur * 60000);
@@ -596,7 +525,7 @@ export async function updateBooking(id: string, data: {
                     menuId: service.id,
                     menuName: `${service.name} (Head Spa)`,
                     staffId: data.staffId2 || data.staffId || null,
-                    resourceId: 'spa-1', // Default? Or try to guess? safely 'spa-1' or request logic.
+                    resourceId: 'spa-1',
                     startAt: massageEnd,
                     endAt: endAt,
                     status: 'Confirmed',
@@ -608,7 +537,7 @@ export async function updateBooking(id: string, data: {
             });
 
         } else {
-            // Normal Single -> Single
+            // Single -> Single
             await prisma.booking.update({
                 where: { id },
                 data: {
@@ -618,6 +547,7 @@ export async function updateBooking(id: string, data: {
                     endAt: endAt,
                     staffId: data.staffId,
                     clientName: data.clientName
+                    // Can add realloc here too if we want, but keeping safe for now
                 }
             });
         }
@@ -639,27 +569,26 @@ export async function deleteBooking(id: string) {
 }
 
 export async function getMonthlyStaffSummary(year: number, month: number) {
+    // Existing logic...
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
     const bookings = await prisma.booking.findMany({
         where: {
             startAt: { gte: startOfMonth, lte: endOfMonth },
-            status: { not: 'Cancelled' }, // Exclude cancelled
+            status: { not: 'Cancelled' },
             staffId: { not: null }
         },
         include: { service: true }
     });
 
     const staffList = await prisma.staff.findMany({
-        where: { role: { in: ['Therapist', 'THERAPIST', 'therapist'] } } // Case insensitive match attempt
+        where: { role: { in: ['Therapist', 'THERAPIST', 'therapist'] } }
     });
 
     const summary = staffList.map(staff => {
         const staffBookings = bookings.filter(b => b.staffId === staff.id);
         const totalMs = staffBookings.reduce((acc, b) => acc + (b.endAt.getTime() - b.startAt.getTime()), 0);
-        // Commission = (Total Hours) * Staff.commissionRate
-        // Assuming commissionRate is per hour.
         const totalHours = totalMs / (1000 * 60 * 60);
         const totalCommission = Math.floor(totalHours * (staff.commissionRate || 0));
 
