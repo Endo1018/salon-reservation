@@ -382,7 +382,13 @@ export async function updateBooking(id: string, data: {
     // Convert to UTC by subtracting 7 hours
     const startAt = new Date(Date.UTC(yyyy, mm - 1, dd, hours - 7, mins));
     console.log(`[updateBooking] Input: ${data.startTime} (GMT+7) -> UTC: ${startAt.toISOString()}`); // Force Deploy Check
-    const duration = data.duration || (service?.duration || 0);
+
+    let duration = data.duration || (service?.duration || 0);
+    if (service?.type === 'Combo') {
+        const sumDur = (service.massageDuration || 0) + (service.headSpaDuration || 0);
+        if (sumDur > 0) duration = sumDur;
+        console.log(`[updateBooking] Enforcing Combo Duration: ${duration}`);
+    }
     const endAt = new Date(startAt.getTime() + duration * 60000);
 
     // 4. Update Logic
