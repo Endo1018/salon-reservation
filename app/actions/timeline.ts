@@ -417,7 +417,7 @@ export async function updateBooking(id: string, data: {
             const mDur = service.massageDuration || 0;
             const hDur = service.headSpaDuration || 0;
 
-            if (data.isHeadSpaFirst) {
+            if (data.isHeadSpaFirstOrder) {
                 // HEAD SPA FIRST
                 spaStart = startAt;
                 spaEnd = new Date(startAt.getTime() + hDur * 60000);
@@ -432,6 +432,39 @@ export async function updateBooking(id: string, data: {
             }
         }
 
+        // --- AUTO REALLOCATION ---
+        let finalMassageResId = mainLeg?.resourceId;
+        if (mainLeg) {
+            const isFree = await isResourceFree(mainLeg.resourceId, massageStart, massageEnd, mainLeg.id);
+            if (!isFree) {
+                console.log(`[AutoRealloc] Conflict detected for Main (${mainLeg.resourceId})`);
+                const poolInfo = getPoolByResourceId(mainLeg.resourceId);
+                if (poolInfo) {
+                    const newRes = await findFreeResource(poolInfo.pool, massageStart, massageEnd, mainLeg.id);
+                    if (newRes) {
+                        console.log(`[AutoRealloc] Moved Main to ${newRes}`);
+                        finalMassageResId = newRes;
+                    }
+                }
+            }
+        }
+
+        let finalSpaResId = subLeg?.resourceId;
+        if (subLeg) {
+            const isFree = await isResourceFree(subLeg.resourceId, spaStart, spaEnd, subLeg.id);
+            if (!isFree) {
+                console.log(`[AutoRealloc] Conflict detected for Sub (${subLeg.resourceId})`);
+                const poolInfo = getPoolByResourceId(subLeg.resourceId);
+                if (poolInfo) {
+                    const newRes = await findFreeResource(poolInfo.pool, spaStart, spaEnd, subLeg.id);
+                    if (newRes) {
+                        console.log(`[AutoRealloc] Moved Sub to ${newRes}`);
+                        finalSpaResId = newRes;
+                    }
+                }
+            }
+        }
+
         if (isServiceChanged && service?.type === 'Combo') {
             // Update Main Leg (Massage)
             if (mainLeg) {
@@ -441,7 +474,8 @@ export async function updateBooking(id: string, data: {
                         menuId: service.id,
                         menuName: `${service.name} (Massage)`,
                         startAt: massageStart,
-                        endAt: massageEnd
+                        endAt: massageEnd,
+                        resourceId: finalMassageResId
                     }
                 }));
             }
@@ -453,7 +487,8 @@ export async function updateBooking(id: string, data: {
                         menuId: service.id,
                         menuName: `${service.name} (Head Spa)`,
                         startAt: spaStart,
-                        endAt: spaEnd
+                        endAt: spaEnd,
+                        resourceId: finalSpaResId
                     }
                 }));
             }
@@ -471,7 +506,8 @@ export async function updateBooking(id: string, data: {
                         startAt: startAt,
                         endAt: endAt,
                         comboLinkId: null, // Unlink
-                        isComboMain: false
+                        isComboMain: false,
+                        resourceId: finalMassageResId
                     }
                 }));
             }
@@ -481,13 +517,21 @@ export async function updateBooking(id: string, data: {
                 if (mainLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: mainLeg.id },
-                        data: { startAt: massageStart, endAt: massageEnd }
+                        data: {
+                            startAt: massageStart,
+                            endAt: massageEnd,
+                            resourceId: finalMassageResId
+                        }
                     }));
                 }
                 if (subLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: subLeg.id },
-                        data: { startAt: spaStart, endAt: spaEnd }
+                        data: {
+                            startAt: spaStart,
+                            endAt: spaEnd,
+                            resourceId: finalSpaResId
+                        }
                     }));
                 }
             }
