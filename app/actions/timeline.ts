@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { findFreeResource, isResourceFree, getPoolByResourceId, resourcePools } from '@/app/services/booking-service';
 
 // --- TYPES ---
 export type TimelineResource = {
