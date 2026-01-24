@@ -385,7 +385,7 @@ export async function updateBooking(id: string, data: {
     console.log(`[updateBooking] Input: ${data.startTime} (GMT+7) -> UTC: ${startAt.toISOString()}`); // Force Deploy Check
 
     let duration = data.duration || (service?.duration || 0);
-    if (service?.type === 'Combo') {
+    if (service?.type?.trim().toLowerCase() === 'combo') {
         const sumDur = (service.massageDuration || 0) + (service.headSpaDuration || 0);
         if (sumDur > 0) duration = sumDur;
         console.log(`[updateBooking] Enforcing Combo Duration: ${duration}`);
@@ -414,7 +414,7 @@ export async function updateBooking(id: string, data: {
         let spaStart = startAt;
         let spaEnd = endAt;
 
-        if (service?.type === 'Combo') {
+        if (service?.type?.trim().toLowerCase() === 'combo') {
             const mDur = service.massageDuration || 0;
             const hDur = service.headSpaDuration || 0;
 
@@ -466,7 +466,7 @@ export async function updateBooking(id: string, data: {
             }
         }
 
-        if (isServiceChanged && service?.type === 'Combo') {
+        if (isServiceChanged && service?.type?.trim().toLowerCase() === 'combo') {
             // Update Main Leg (Massage)
             if (mainLeg) {
                 updatePromises.push(prisma.booking.update({
@@ -493,7 +493,7 @@ export async function updateBooking(id: string, data: {
                     }
                 }));
             }
-        } else if (isServiceChanged && service?.type !== 'Combo') {
+        } else if (isServiceChanged && service?.type?.trim().toLowerCase() !== 'combo') {
             // CONVERT COMBO -> SINGLE
             if (subLeg) {
                 updatePromises.push(prisma.booking.delete({ where: { id: subLeg.id } }));
@@ -514,7 +514,7 @@ export async function updateBooking(id: string, data: {
             }
         } else {
             // Service NOT Changed (Just Time/Staff/Duration/Order edit)
-            if (service?.type === 'Combo') {
+            if (service?.type?.trim().toLowerCase() === 'combo') {
                 if (mainLeg) {
                     updatePromises.push(prisma.booking.update({
                         where: { id: mainLeg.id },
