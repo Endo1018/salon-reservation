@@ -535,6 +535,18 @@ export async function updateBooking(id: string, data: {
                         }
                     }));
                 }
+            } else {
+                // Single Service Update (Service Not Changed)
+                if (mainLeg) {
+                    updatePromises.push(prisma.booking.update({
+                        where: { id: mainLeg.id },
+                        data: {
+                            startAt,
+                            endAt,
+                            resourceId: finalMassageResId
+                        }
+                    }));
+                }
             }
         }
 
