@@ -346,7 +346,7 @@ export async function getBooking(id: string) {
     return {
         ...main,
         overallStart,
-        isHeadSpaFirst
+        isHeadSpaFirstOrder: isHeadSpaFirst
     };
 }
 
@@ -358,7 +358,7 @@ export async function updateBooking(id: string, data: {
     staffId?: string | null;
     staffId2?: string | null;
     clientName?: string;
-    isHeadSpaFirst?: boolean; // New Param
+    isHeadSpaFirstOrder?: boolean; // Renamed to force refresh
 }) {
     // 1. Fetch Target
     const target = await prisma.booking.findUnique({
