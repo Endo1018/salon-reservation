@@ -370,6 +370,7 @@ export async function updateBooking(id: string, data: {
 
     // 2. Fetch New Service (if changed)
     let service = target.service;
+    console.log("[TIMESTAMP_DEBUG] updateBooking Payload:", JSON.stringify(data));
     if (data.serviceId && data.serviceId !== target.menuId) {
         service = await prisma.service.findUnique({ where: { id: data.serviceId } });
         if (!service) throw new Error('Service not found');
