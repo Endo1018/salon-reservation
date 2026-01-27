@@ -13,9 +13,10 @@ export async function updateAttendance(
     isOvertime: boolean,
     status: string = 'Normal',
     shiftStart: string | null = null,
-    shiftEnd: string | null = null
+    shiftEnd: string | null = null,
+    lateTimeOverride: number | null = null
 ) {
-    console.log(`[updateAttendance] ID: ${id}, AtStart: ${start}, AtEnd: ${end}, ShiftStart: ${shiftStart}, ShiftEnd: ${shiftEnd}`);
+    console.log(`[updateAttendance] ID: ${id}, AtStart: ${start}, AtEnd: ${end}, ShiftStart: ${shiftStart}, ShiftEnd: ${shiftEnd}, LateOverride: ${lateTimeOverride}`);
     try {
         const att = await prisma.attendance.update({
             where: { id },
@@ -28,6 +29,7 @@ export async function updateAttendance(
                 isOvertime,
                 status,
                 isManual: true,
+                lateTimeOverride, // Save override
             },
         });
 

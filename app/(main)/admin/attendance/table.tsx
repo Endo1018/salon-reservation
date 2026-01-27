@@ -1,7 +1,7 @@
 'use client';
 
 import { updateAttendance, deleteAttendance } from '@/app/actions/attendance';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Simplified Type
 type Rec = {
@@ -15,10 +15,11 @@ type Rec = {
     overtime: number;
     isOvertime: boolean;
     status: string;
-    lateMins: number;
+    lateMins: number; // Calculated default
     earlyMins: number;
     shiftStart: string | null;
     shiftEnd: string | null;
+    lateTimeOverride?: number | null; // DB field
 };
 
 // Pure function for calculation
@@ -110,14 +111,20 @@ const calcLateEarly = (attStart: string, attEnd: string, shiftStart: string | nu
     return { late, early };
 };
 
-import { useEffect } from 'react';
-
 // Helper to format decimal hours to H:MM
 const formatDecimalToTime = (decimalHours: number): string => {
     const totalMinutes = Math.round(decimalHours * 60);
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
     return `${h}:${m.toString().padStart(2, '0')}`;
+};
+
+// Helper inside component to parse "H:MM" back to minutes
+const parseDurationString = (str: string): number => {
+    if (!str) return 0;
+    const [h, m] = str.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return 0;
+    return h * 60 + m;
 };
 
 export default function AttendanceTable({ initialData }: { initialData: Rec[] }) {
@@ -127,11 +134,13 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
     const [newBreakTime, setNewBreakTime] = useState<string>('1.0');
     const [newIsOvertime, setNewIsOvertime] = useState<boolean>(false);
     const [newWorkHours, setNewWorkHours] = useState<string>('0');
-    const [newLate, setNewLate] = useState<string>('0:00');
+
+    // Manual Late Override: null means "use auto-calc". string means "user typed something".
+    const [manualLate, setManualLate] = useState<string | null>(null);
+
     const [newEarly, setNewEarly] = useState<string>('0:00');
     const [newIsCheck, setNewIsCheck] = useState<boolean>(false);
 
-    // Derived values (calculated on render for simplicity in UI, but passed to Save)
     const [isDeleting, setIsDeleting] = useState(false);
 
     const startEditing = (rec: Rec) => {
@@ -144,15 +153,21 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         setNewWorkHours(String(rec.workHours));
         setNewIsCheck(rec.status === 'Check');
 
-        // Init Late/Early inputs (for display in edit mode)
-        const { late, early } = calcLateEarly(
+        // Late Init: If override exists, use it. Else null (auto).
+        if (rec.lateTimeOverride !== null && rec.lateTimeOverride !== undefined) {
+            setManualLate(formatDecimalToTime(rec.lateTimeOverride / 60));
+        } else {
+            setManualLate(null);
+        }
+
+        // Early init (keep calc or allow override too? User asked for Late only generally)
+        const { early } = calcLateEarly(
             rec.start ? rec.start.slice(0, 5) : '',
             rec.end ? rec.end.slice(0, 5) : '',
             rec.shiftStart,
             rec.shiftEnd,
             rec.breakTime
         );
-        setNewLate(formatDecimalToTime(late / 60));
         setNewEarly(formatDecimalToTime(early / 60));
     };
 
@@ -164,7 +179,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         setNewIsOvertime(false);
         setNewWorkHours('0');
         setNewIsCheck(false);
-        setNewLate('0:00');
+        setManualLate(null);
         setNewEarly('0:00');
     };
 
@@ -173,13 +188,15 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         if (editingId === null) return;
 
         const rawDuration = calculateDuration(newStart, newEnd);
-        if (rawDuration === null) return; // Don't wipe if invalid
+        if (rawDuration === null) return;
 
         const netDuration = Math.max(0, rawDuration - Number(newBreakTime));
-        // const potentialOvertime = Math.max(0, netDuration - 8.0);
-
         let calculatedHours = netDuration;
         setNewWorkHours(calculatedHours.toFixed(2));
+
+        // NOTE: we do NOT update manualLate here.
+        // User sees auto-calc late value if manualLate is null.
+        // If they change Start Time, auto-calc late changes.
     }, [newStart, newEnd, newBreakTime, editingId]);
 
     const handleSave = async (id: number) => {
@@ -188,26 +205,24 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         const potentialOvertime = Math.max(0, netDuration - 8.0);
         const finalOvertime = potentialOvertime;
 
-        // Back-calculate Shift Times
-        const parse = (t: string) => {
-            const [h, m] = t.split(':').map(Number);
-            return h * 60 + m;
-        };
-        const format = (m: number) => {
-            const h = Math.floor(m / 60);
-            const min = m % 60;
-            return `${h}:${min.toString().padStart(2, '0')}`;
-        };
+        // Calc current dynamic late (for comparison)
+        const rec = initialData.find(r => r.id === id);
+        let overrideVal: number | null = null;
+        let calculatedLate = 0;
 
-        let shiftStartStr = null;
-        let shiftEndStr = null;
+        if (rec) {
+            const { late } = calcLateEarly(newStart, newEnd, rec.shiftStart, rec.shiftEnd, Number(newBreakTime));
+            calculatedLate = late;
+        }
 
-        // Note: With new logic, we don't necessarily update shift on every save from late/early, 
-        // as late/early are auto-calc. 
-        // But if we wanted to support "Manual Shift Override" we would do it here.
-        // For now, consistent with user request, we rely on Auto Logic. 
-        // So we pass NULL for shift updates unless we implement shift editing explicitly.
-        // User rejected "Manual Late Input", so we follow that.
+        if (manualLate !== null) {
+            const manualMins = parseDurationString(manualLate);
+            if (manualMins !== calculatedLate) {
+                overrideVal = manualMins;
+            } else {
+                overrideVal = null; // Matches calc, so clear override
+            }
+        }
 
         await updateAttendance(
             id,
@@ -218,8 +233,9 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
             Number(finalOvertime.toFixed(2)),
             newIsOvertime,
             newIsCheck ? 'Check' : 'Normal',
-            newStart, // Update Shift Start to match Manual Attendance
-            newEnd    // Update Shift End
+            newStart,
+            newEnd,
+            overrideVal // Pass override
         );
         stopEditing();
     };
@@ -254,14 +270,36 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                 {initialData.map((rec) => {
                     const isEditing = editingId === rec.id;
 
-                    // Calc Display Late/Early (using new logic)
-                    const { late, early } = calcLateEarly(
+                    // Calc Display Late/Early
+                    const { late: calculatedLate, early } = calcLateEarly(
                         isEditing ? newStart : (rec.start ? rec.start.slice(0, 5) : ''),
                         isEditing ? newEnd : (rec.end ? rec.end.slice(0, 5) : ''),
                         rec.shiftStart,
                         rec.shiftEnd,
                         isEditing ? Number(newBreakTime) : rec.breakTime
                     );
+
+                    // Determine what to show for Late
+                    // View Mode: use DB override if present, else calc.
+                    // Edit Mode: use manualLate state if present, else calc.
+                    let displayLateMins = calculatedLate;
+                    if (isEditing) {
+                        // In edit mode loop??? No wait.
+                        // `newStart` is global state for the ONE editing row.
+                        // So `calculatedLate` IS correct for the editing row.
+
+                        // Wait, `manualLate` is a STRING input (H:MM). e.g. "0:41".
+                        // `calculatedLate` is number (41).
+                    } else {
+                        if (rec.lateTimeOverride !== null && rec.lateTimeOverride !== undefined) {
+                            displayLateMins = rec.lateTimeOverride;
+                        }
+                    }
+
+                    // For editing input value:
+                    const editingInputValue = manualLate !== null
+                        ? manualLate
+                        : formatDecimalToTime(calculatedLate / 60);
 
                     if (isEditing) {
                         return (
@@ -294,14 +332,19 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                     />
                                 </td>
                                 <td className="p-4 text-slate-400">
-                                    {late > 0 ? <span className="text-red-400 font-mono">{formatDecimalToTime(late / 60)}</span> : '-'}
+                                    <input
+                                        type="text"
+                                        placeholder="0:00"
+                                        value={editingInputValue}
+                                        onChange={(e) => setManualLate(e.target.value)}
+                                        className={`bg-slate-900 border border-slate-600 rounded p-1 w-16 text-white ${editingInputValue !== '0:00' ? 'text-red-400' : ''}`}
+                                    />
                                 </td>
                                 <td className="p-4 text-slate-400">
                                     {early > 0 ? <span className="text-red-400 font-mono">{formatDecimalToTime(early / 60)}</span> : '-'}
                                 </td>
                                 <td className="p-4">
-                                    {/* Potential Overtime UI logic reused for display context if needed, but here we just show the input */}
-                                    {/* Recalculate potential overtime for display only: */}
+                                    {/* Potential Overtime logic */}
                                     {(() => {
                                         const r = calculateDuration(newStart, newEnd) || 0;
                                         const n = Math.max(0, r - Number(newBreakTime));
@@ -315,7 +358,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                                     checked={newIsOvertime}
                                                     onChange={(e) => setNewIsOvertime(e.target.checked)}
                                                     className="w-4 h-4 bg-slate-900 border-slate-600 rounded"
-                                                    title="残業として承認する場合はチェック (Check to approve overtime)"
+                                                    title="Check to approve overtime"
                                                 />
                                             </div>
                                         );
@@ -377,9 +420,9 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                                 {rec.breakTime ? formatDecimalToTime(rec.breakTime) : '1:00'}
                             </td>
                             <td className="p-4 text-slate-400">
-                                {late > 0 ? (
+                                {displayLateMins > 0 ? (
                                     <span className="text-red-400 font-mono text-xs font-bold">
-                                        {formatDecimalToTime(late / 60)}
+                                        {formatDecimalToTime(displayLateMins / 60)}
                                     </span>
                                 ) : (
                                     <span className="text-slate-600">-</span>

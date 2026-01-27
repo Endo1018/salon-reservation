@@ -55,6 +55,7 @@ model Attendance {
   breakTime   Float    @default(1.0)
   isOvertime  Boolean  @default(false)
   overtime    Float    @default(0)
+  lateTimeOverride Int? // Manual override for late minutes (null = auto-calc)
   isManual    Boolean  @default(false)
   staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }

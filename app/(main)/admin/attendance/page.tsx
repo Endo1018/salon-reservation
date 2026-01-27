@@ -156,7 +156,8 @@ export default async function AttendanceManagementPage({
             lateMins,
             earlyMins,
             shiftStart: shift?.start || null,
-            shiftEnd: shift?.end || null
+            shiftEnd: shift?.end || null,
+            lateTimeOverride: record.lateTimeOverride || null
         };
     });
 
