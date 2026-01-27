@@ -46,7 +46,7 @@ export default async function StaffManagement(props: Props) {
                     <form action={createStaff} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs text-slate-400 mb-1">Staff ID</label>
-                            <input name="id" type="text" placeholder="S999" required
+                            <input name="id" type="text" placeholder="S999 (Auto-gen if empty)"
                                 className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />
                         </div>
                         <div>

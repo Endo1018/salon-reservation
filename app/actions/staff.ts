@@ -5,15 +5,21 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 export async function createStaff(formData: FormData) {
-    const id = formData.get('id') as string;
+    let id = formData.get('id') as string;
     const name = formData.get('name') as string;
     const role = formData.get('role') as string;
     const baseWage = Number(formData.get('baseWage'));
     const commissionRate = Number(formData.get('commissionRate') || 0);
     const incentiveRate = Number(formData.get('incentiveRate') || 0);
 
-    if (!id || !name || !role) {
+    if (!name || !role) {
         throw new Error('Missing required fields');
+    }
+
+    // Auto-generate ID if empty
+    if (!id) {
+        const timestamp = Date.now().toString();
+        id = `TEMP-${timestamp.slice(-6)}`;
     }
 
     try {
