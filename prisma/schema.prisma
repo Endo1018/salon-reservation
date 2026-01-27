@@ -69,6 +69,7 @@ model PayrollAdjustment {
   bonus                  Int     @default(0)
   deduction              Int     @default(0)
   notes                  String?
+  isConfirmed            Boolean @default(false)
   allowanceCommute       Int     @default(0)
   allowanceMeal          Int     @default(0)
   allowanceOther         Int     @default(0)

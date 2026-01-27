@@ -26,6 +26,21 @@ export async function updatePayrollAdjustment(
 ) {
     if (!staffId || !year || !month) throw new Error('Missing keys');
 
+    // Check for confirmation status
+    const existing = await prisma.payrollAdjustment.findUnique({
+        where: {
+            staffId_year_month: {
+                staffId,
+                year,
+                month
+            }
+        }
+    });
+
+    if (existing && existing.isConfirmed) {
+        throw new Error('This payroll is already confirmed and cannot be edited.');
+    }
+
     // Upsert
     await prisma.payrollAdjustment.upsert({
         where: {
@@ -71,6 +86,53 @@ export async function updatePayrollAdjustment(
             notes: data.notes
         }
     });
+
+    revalidatePath('/admin/payroll');
+}
+
+export async function confirmPayroll(staffId: string, year: number, month: number) {
+    if (!staffId || !year || !month) throw new Error('Missing keys');
+
+    await prisma.payrollAdjustment.upsert({
+        where: {
+            staffId_year_month: {
+                staffId,
+                year,
+                month
+            }
+        },
+        create: {
+            staffId, year, month,
+            isConfirmed: true
+        },
+        update: {
+            isConfirmed: true
+        }
+    });
+
+    revalidatePath('/admin/payroll');
+}
+
+export async function confirmMonthlyPayroll(year: number, month: number) {
+    if (!year || !month) throw new Error('Missing keys');
+
+    // Update all adjustments for this month to confirmed
+    await prisma.payrollAdjustment.updateMany({
+        where: { year, month },
+        data: { isConfirmed: true }
+    });
+
+    // Ensure all active staff have a confirmed adjustment record
+    const activeStaff = await prisma.staff.findMany({ where: { isActive: true } });
+    for (const staff of activeStaff) {
+        await prisma.payrollAdjustment.upsert({
+            where: {
+                staffId_year_month: { staffId: staff.id, year, month }
+            },
+            create: { staffId: staff.id, year, month, isConfirmed: true },
+            update: { isConfirmed: true }
+        });
+    }
 
     revalidatePath('/admin/payroll');
 }

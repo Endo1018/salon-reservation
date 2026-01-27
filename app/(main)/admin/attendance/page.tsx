@@ -3,6 +3,7 @@ import AttendanceTable from './table';
 import ImportButton from './ImportButton';
 import DeleteAllButton from './DeleteAllButton';
 import AttendanceFilter from './Filter';
+import RecalcButton from './RecalcButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,12 +16,15 @@ export default async function AttendanceManagementPage({
     const staffId = typeof params.staffId === 'string' ? params.staffId : undefined;
     const dateStr = typeof params.date === 'string' ? params.date : undefined;
     const monthStr = typeof params.month === 'string' ? params.month : undefined;
+    const yearStr = typeof params.year === 'string' ? params.year : undefined;
+
+    // Derived Y/M for Recalc Button
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth() + 1;
 
     // Build Where Clause
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
-
-    console.log('[AttendancePage] Params:', { staffId, dateStr, monthStr });
 
     if (staffId) {
         where.staffId = staffId;
@@ -28,8 +32,6 @@ export default async function AttendanceManagementPage({
 
     if (dateStr) {
         // Specific Date
-        // Prisma stores dates as Date objects at UTC midnight usually (from our other logic)
-        // But simply filtering by date range for that day is safer.
         const start = new Date(dateStr);
         const end = new Date(dateStr);
         end.setDate(end.getDate() + 1);
@@ -37,15 +39,37 @@ export default async function AttendanceManagementPage({
             gte: start,
             lt: end,
         };
-    } else if (monthStr) {
+        currentYear = start.getFullYear();
+        currentMonth = start.getMonth() + 1;
+
+    } else if (yearStr && monthStr && !monthStr.includes('-')) {
+        // Handle ?year=2025&month=1 format
+        const y = parseInt(yearStr);
+        const m = parseInt(monthStr);
+        if (!isNaN(y) && !isNaN(m)) {
+            currentYear = y;
+            currentMonth = m;
+            const start = new Date(Date.UTC(y, m - 1, 1));
+            const end = new Date(Date.UTC(y, m, 1)); // Next month 1st is end of this month range
+            where.date = {
+                gte: start,
+                lt: end,
+            };
+        }
+    } else if (monthStr && monthStr.includes('-')) {
         // Month Filter (YYYY-MM)
         const [y, m] = monthStr.split('-').map(Number);
-        const start = new Date(Date.UTC(y, m - 1, 1));
-        const end = new Date(Date.UTC(y, m, 1));
-        where.date = {
-            gte: start,
-            lt: end,
-        };
+        if (!isNaN(y) && !isNaN(m)) {
+            currentYear = y;
+            currentMonth = m;
+
+            const start = new Date(Date.UTC(y, m - 1, 1));
+            const end = new Date(Date.UTC(y, m, 1));
+            where.date = {
+                gte: start,
+                lt: end,
+            };
+        }
     } else {
         // Default: Current Month
         const now = new Date();
@@ -60,7 +84,6 @@ export default async function AttendanceManagementPage({
     }
 
     // Filter out "Off" and Empty records ("-")
-    // User request: "OFFまたは"-"は表示しないで"
     where.AND = [
         { status: { not: 'Off' } },
         {
@@ -78,14 +101,9 @@ export default async function AttendanceManagementPage({
             { staffId: 'asc' }
         ],
         include: { staff: true },
-        // No limit, relying on date filter
     });
 
-    // Fetch Shifts for calculation
-    // Reuse the 'where' clause but adapted? 
-    // The 'where' usually filters by date range and staffId, which is compatible with Shift.
-    // However, 'where' has "status: { not: 'Off' }" which might differ for Shift.
-    // Let's rely on finding shifts by ID/Date from the fetched attendance list to be precise.
+    // Fetch Shifts
     const dateList = attendanceData.map(a => a.date);
     const staffIdList = attendanceData.map(a => a.staffId);
 
@@ -147,7 +165,9 @@ export default async function AttendanceManagementPage({
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-2xl font-bold text-[var(--primary)] tracking-widest">勤怠修正 (Attendance Correction)</h1>
-                    {/* Buttons moved to Shift Management Page */}
+                    <div className="flex gap-2">
+                        <RecalcButton year={currentYear} month={currentMonth} />
+                    </div>
                 </div>
 
                 <AttendanceFilter staffList={staffList} />

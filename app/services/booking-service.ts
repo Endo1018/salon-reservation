@@ -16,6 +16,14 @@ export async function isResourceFree(
     end: Date,
     excludeBookingId?: string
 ): Promise<boolean> {
+    console.log(`[CheckFree] Res: ${resourceId}, Range: ${start.toISOString()}-${end.toISOString()}, Excl: ${excludeBookingId}`);
+
+    // Ensure dates are valid
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.error("[CheckFree] Invalid Date supplied");
+        return false;
+    }
+
     const conflict = await prisma.booking.findFirst({
         where: {
             resourceId,
@@ -25,6 +33,8 @@ export async function isResourceFree(
             status: { not: 'Cancelled' }
         }
     });
+
+    console.log(`[CheckFree] Conflict Found for ${resourceId}? ${!!conflict} (ID: ${conflict?.id})`);
     return !conflict;
 }
 
@@ -37,11 +47,6 @@ export async function findFreeResource(
     end: Date,
     excludeBookingId?: string
 ): Promise<string | null> {
-    // Check usage for all resources in pool efficiently?
-    // Or just iterate (pool is small < 10). Iteration is fine.
-
-    // Optimization: Fetch all conflicts for the pool in one query to avoid N queries?
-    // Given low volume, simple iteration is okay, but one query is better.
 
     const conflicts = await prisma.booking.findMany({
         where: {
@@ -55,6 +60,7 @@ export async function findFreeResource(
     });
 
     const busySet = new Set(conflicts.map(c => c.resourceId));
+    console.log(`[FindFree] Pool: ${pool.join(',')}, Busy: ${Array.from(busySet).join(',')}`);
 
     for (const resId of pool) {
         if (!busySet.has(resId)) return resId;

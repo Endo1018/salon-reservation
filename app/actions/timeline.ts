@@ -235,9 +235,25 @@ export async function createBooking(data: {
         } else {
             // Single
             let targetResourceId = data.resourceId;
-            // Check availability?
-            // If Create, we usually respect user click, but if busy, could hint.
-            // For now keep standard logic.
+
+            // --- VALIDATION & AUTO-REALLOCATION ---
+            const isFree = await isResourceFree(targetResourceId, startAt, endAt);
+            if (!isFree) {
+                console.log(`[CreateBooking] Conflict for ${targetResourceId} @ ${startAt.toISOString()}. Attempting Auto-Realloc.`);
+
+                const poolInfo = getPoolByResourceId(targetResourceId);
+                if (poolInfo) {
+                    const newRes = await findFreeResource(poolInfo.pool, startAt, endAt);
+                    if (newRes) {
+                        console.log(`[CreateBooking] Reallocated to ${newRes}`);
+                        targetResourceId = newRes;
+                    } else {
+                        throw new Error(`Time slot is fully booked for ${poolInfo.type}. Please choose another time.`);
+                    }
+                } else {
+                    throw new Error('Selected resource is busy.');
+                }
+            }
 
             await prisma.booking.create({
                 data: {
@@ -352,9 +368,9 @@ export async function updateBooking(id: string, data: {
 
         // Calculate Split Times
         let massageStart = startAt;
-        let massageEnd = startAt;
+        let massageEnd = endAt; // Default for Single
         let spaStart = startAt;
-        let spaEnd = endAt;
+        let spaEnd = endAt;      // Default for Single
 
         if (isCombo) {
             const mDur = service.massageDuration || 0;
@@ -502,7 +518,33 @@ export async function updateBooking(id: string, data: {
         if (isCombo) {
             const comboLinkId = crypto.randomUUID();
             const mDur = service.massageDuration || 0;
+            const hDur = service.headSpaDuration || 0;
             const massageEnd = new Date(startAt.getTime() + mDur * 60000);
+
+            // Realloc Logic for Main (Massage)
+            let mainResId = target.resourceId;
+            // Check if current res accepts massage? Usually yes if seat. If spa, maybe.
+            // But let's check availability.
+            let isFreeM = await isResourceFree(mainResId, startAt, massageEnd, id);
+            if (!isFreeM) {
+                // Try to keep same category?
+                const poolInfo = getPoolByResourceId(mainResId);
+                if (poolInfo) {
+                    const newM = await findFreeResource(poolInfo.pool, startAt, massageEnd, id);
+                    if (newM) mainResId = newM;
+                    else throw new Error("Main service time slot is busy.");
+                }
+            }
+
+            // Realloc Logic for Sub (Spa - fixed to spa-1 default or auto)
+            let subResId = 'spa-1';
+            const isFreeS = await isResourceFree(subResId, massageEnd, endAt);
+            if (!isFreeS) {
+                const newS = await findFreeResource(resourcePools.spa, massageEnd, endAt);
+                if (newS) subResId = newS;
+                else throw new Error("Head Spa time slot is busy.");
+            }
+
 
             // Update Main
             await prisma.booking.update({
@@ -513,9 +555,7 @@ export async function updateBooking(id: string, data: {
                     startAt: startAt,
                     endAt: massageEnd,
                     comboLinkId,
-                    isComboMain: true,
-                    staffId: data.staffId,
-                    clientName: data.clientName
+                    resourceId: mainResId
                 }
             });
 
@@ -525,7 +565,7 @@ export async function updateBooking(id: string, data: {
                     menuId: service.id,
                     menuName: `${service.name} (Head Spa)`,
                     staffId: data.staffId2 || data.staffId || null,
-                    resourceId: 'spa-1',
+                    resourceId: subResId,
                     startAt: massageEnd,
                     endAt: endAt,
                     status: 'Confirmed',
@@ -538,6 +578,25 @@ export async function updateBooking(id: string, data: {
 
         } else {
             // Single -> Single
+            let targetResourceId = target.resourceId; // Keep existing resource
+
+            // --- VALIDATION & AUTO-REALLOCATION ---
+            const isFree = await isResourceFree(targetResourceId, startAt, endAt, id);
+            if (!isFree) {
+                console.log(`[UpdateBooking] Conflict for ${targetResourceId}. Attempting Auto-Realloc.`);
+                const poolInfo = getPoolByResourceId(targetResourceId);
+                if (poolInfo) {
+                    const newRes = await findFreeResource(poolInfo.pool, startAt, endAt, id);
+                    if (newRes) {
+                        targetResourceId = newRes;
+                    } else {
+                        throw new Error(`Time slot is fully booked for ${poolInfo.type}.`);
+                    }
+                } else {
+                    throw new Error('Selected resource is busy.');
+                }
+            }
+
             await prisma.booking.update({
                 where: { id },
                 data: {
@@ -546,8 +605,8 @@ export async function updateBooking(id: string, data: {
                     startAt: startAt,
                     endAt: endAt,
                     staffId: data.staffId,
-                    clientName: data.clientName
-                    // Can add realloc here too if we want, but keeping safe for now
+                    clientName: data.clientName,
+                    resourceId: targetResourceId
                 }
             });
         }

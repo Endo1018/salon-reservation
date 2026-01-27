@@ -6,6 +6,10 @@ import { useState, useTransition } from 'react';
 import { calculateStaffPayroll, formatCurrencyVND } from '@/lib/payroll-engine';
 import { updatePayrollAdjustment } from '@/app/actions/payroll';
 import PDFExportButton from './PDFExportButton';
+import { utils, writeFile } from 'xlsx';
+import { toast } from 'sonner';
+import { confirmMonthlyPayroll } from '@/app/actions/payroll';
+import { Lock } from 'lucide-react';
 
 type Props = {
     staffList: Staff[];
@@ -32,6 +36,16 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
             newMonth = 12;
         }
         router.push(`?year=${newYear}&month=${newMonth}`);
+    };
+
+    const handleFinalize = async () => {
+        if (!confirm('Are you sure you want to finalize payroll for this month? This will lock all edits.')) return;
+        try {
+            await confirmMonthlyPayroll(year, month);
+            toast.success('Payroll finalized successfully');
+        } catch (error) {
+            toast.error('Failed to finalize payroll');
+        }
     };
 
     // Calculate Payroll Data using Engine
@@ -74,6 +88,43 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
         return `${h}:${m.toString().padStart(2, '0')}`;
     };
 
+
+    // ... imports
+
+    const handleExportExcel = () => {
+        const wb = utils.book_new();
+        const data = payrollData.map(p => ({
+            Name: p.staff.name,
+            Role: p.staff.role,
+            WorkDays: p.totalWorkDays,
+            WorkHours: p.totalWorkHours,
+            BasePay: p.basePayTotal,
+            PosAllow: p.allowances.position,
+            LangAllow: p.allowances.language,
+            CommuteAllow: p.allowances.commute,
+            MealAllow: p.allowances.meal,
+            HousingAllow: p.allowances.housing,
+            OtherAllow: p.allowances.other,
+            TotalAllow: p.allowances.total,
+            OvertimeHours: p.totalOvertimeHours,
+            OvertimePay: p.overtimePayTotal,
+            HolidayHours: p.totalHolidayWorkHours,
+            HolidayPay: p.holidayWorkPayTotal,
+            Commission: p.commissionTotal,
+            Incentive: p.incentiveTotal,
+            Bonus: p.bonus,
+            Deduction: p.deduction,
+            Gross: p.grossSalary,
+            Insurance: p.insurance.total,
+            PIT: p.pit,
+            Net: p.netSalary
+        }));
+
+        const ws = utils.json_to_sheet(data);
+        utils.book_append_sheet(wb, ws, "Payroll");
+        writeFile(wb, `Payroll_${year}_${month}.xlsx`);
+    };
+
     return (
         <div className="space-y-6">
             {/* Header / Month Selector */}
@@ -86,6 +137,14 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                     </h2>
                 </div>
                 <div className="flex gap-2">
+                    <button onClick={handleFinalize} className="p-2 px-4 bg-red-900/50 hover:bg-red-800 border border-red-700 rounded text-red-100 text-sm transition-colors flex items-center gap-2">
+                        <Lock className="w-3 h-3" /> Finalize
+                    </button>
+                    <div className="w-px bg-slate-700 mx-2"></div>
+                    <button onClick={handleExportExcel} className="p-2 px-4 bg-green-700 hover:bg-green-600 rounded text-white text-sm transition-colors flex items-center gap-2">
+                        Export XLSX
+                    </button>
+                    <div className="w-px bg-slate-700 mx-2"></div>
                     <button onClick={() => handleMonthChange(-1)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors">
                         &larr; Prev
                     </button>
@@ -100,7 +159,7 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                 <table className="w-full text-sm text-left text-slate-300 border-collapse">
                     <thead className="text-xs text-slate-400 uppercase bg-slate-800/50 border-b border-slate-700">
                         <tr>
-                            <th className="px-4 py-3 min-w-[150px]">Name</th>
+                            <th className="px-4 py-3 min-w-[150px] sticky left-0 bg-slate-800 z-10">Name</th>
                             <th className="px-4 py-3 text-right">Work</th>
                             <th className="px-4 py-3 text-right">Base</th>
                             <th className="px-4 py-3 text-right text-green-400">Allowances</th>
@@ -117,10 +176,13 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                     <tbody className="divide-y divide-slate-700">
                         {payrollData.map((row) => (
                             <tr key={row.staff.id} className="hover:bg-slate-800/30 transition-colors">
-                                <td className="px-4 py-3 font-bold text-white">
+                                <td className="px-4 py-3 font-bold text-white sticky left-0 bg-slate-800 z-10 border-r border-slate-700">
                                     <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${row.staff.role === 'THERAPIST' ? 'bg-purple-500' : 'bg-orange-500'}`} />
                                         {row.staff.name}
+                                        {row.adjustment?.isConfirmed && (
+                                            <span className="text-[10px] bg-red-900/50 text-red-200 px-1 rounded border border-red-800">Locked</span>
+                                        )}
                                     </div>
                                     <div className="text-[10px] text-slate-500 mt-1 pl-4">
                                         Wage: {formatCurrencyVND(row.staff.baseWage)}<br />
@@ -208,9 +270,10 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                                     />
                                     <button
                                         onClick={() => setEditingStaffId(row.staff.id)}
-                                        className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded"
+                                        disabled={row.adjustment?.isConfirmed}
+                                        className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
-                                        Edit
+                                        {row.adjustment?.isConfirmed ? 'Locked' : 'Edit'}
                                     </button>
                                 </td>
                             </tr>
@@ -268,10 +331,15 @@ function AdjustmentModal({ staffId, staff, year, month, initialData, onClose }: 
 
     const handleSave = () => {
         startTransition(async () => {
-            // We save merged value into commission, ensure incentive is 0
-            const data = { ...formData, incentive: 0 };
-            await updatePayrollAdjustment(staffId, year, month, data);
-            onClose();
+            try {
+                // We save merged value into commission, ensure incentive is 0
+                const data = { ...formData, incentive: 0 };
+                await updatePayrollAdjustment(staffId, year, month, data);
+                toast.success('Adjustment saved successfully');
+                onClose();
+            } catch (e) {
+                toast.error('Failed to save adjustment');
+            }
         });
     };
 
@@ -427,8 +495,12 @@ function AdjustmentModal({ staffId, staff, year, month, initialData, onClose }: 
                     />
                 </div>
 
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm">キャンセル</button>
+                <div className="flex gap-2 mt-6">
+                    <button onClick={handleFinalize} className="p-2 px-4 bg-red-900/50 hover:bg-red-800 border border-red-700 rounded text-red-100 text-sm transition-colors flex items-center gap-2">
+                        <Lock className="w-3 h-3" /> Finalize
+                    </button>
+                    <div className="w-px bg-slate-700 mx-2"></div>
+                    <button onClick={handleExportExcel} className="px-4 py-2 text-slate-400 hover:text-white text-sm">キャンセル</button>
                     <button
                         onClick={handleSave}
                         disabled={isSaving}

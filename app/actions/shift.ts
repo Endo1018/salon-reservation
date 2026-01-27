@@ -123,3 +123,74 @@ export async function upsertShift(staffId: string, dateStr: string, status: stri
         revalidatePath('/admin/attendance');
     }
 }
+// ... existing upsertShift ...
+
+export async function copyShiftsFromPreviousMonth(targetYear: number, targetMonth: number) {
+    // 1. Determine Previous Month
+    let prevYear = targetYear;
+    let prevMonth = targetMonth - 1;
+    if (prevMonth < 1) {
+        prevYear--;
+        prevMonth = 12;
+    }
+
+    // 2. Fetch Previous Shifts
+    const prevStart = new Date(Date.UTC(prevYear, prevMonth - 1, 1));
+    const prevEnd = new Date(Date.UTC(prevYear, prevMonth, 0, 23, 59, 59));
+
+    const prevShifts = await prisma.shift.findMany({
+        where: {
+            date: {
+                gte: prevStart,
+                lte: prevEnd
+            }
+        }
+    });
+
+    if (prevShifts.length === 0) {
+        return { success: false, message: 'No shifts found in previous month to copy.' };
+    }
+
+    let count = 0;
+    const targetDaysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+
+    // 3. Copy Loop
+    for (const shift of prevShifts) {
+        const day = shift.date.getUTCDate();
+        if (day > targetDaysInMonth) continue; // Skip days that don't exist in target (e.g. 31st)
+
+        const targetDate = new Date(Date.UTC(targetYear, targetMonth - 1, day));
+
+        // Create New Shift
+        // Avoid overwriting existing target shifts? Or overwrite? 
+        // User usually wants to fill blanks. Let's start with "Upsert" but maybe skip if status is not default?
+        // Simple Logic: Upsert.
+
+        await prisma.shift.upsert({
+            where: {
+                staffId_date: {
+                    staffId: shift.staffId,
+                    date: targetDate
+                }
+            },
+            create: {
+                staffId: shift.staffId,
+                date: targetDate,
+                status: shift.status,
+                start: shift.start,
+                end: shift.end
+            },
+            update: {
+                // Optional: Don't overwrite if it exists? 
+                // For now, let's overwrite to ensure full copy, user can edit later.
+                status: shift.status,
+                start: shift.start,
+                end: shift.end
+            }
+        });
+        count++;
+    }
+
+    revalidatePath('/admin/shifts');
+    return { success: true, message: `Copied ${count} shifts from ${prevMonth}/${prevYear}.` };
+}

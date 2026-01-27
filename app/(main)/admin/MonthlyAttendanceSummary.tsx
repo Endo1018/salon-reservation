@@ -3,6 +3,7 @@
 import type { Staff, Shift, Attendance } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { isVietnamHoliday } from '@/lib/payroll-engine';
+import { utils, writeFile } from 'xlsx';
 
 type Props = {
     staffList: Staff[];
@@ -163,6 +164,25 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
         };
     });
 
+    const handleExportExcel = () => {
+        const wb = utils.book_new();
+        const data = summary.map(row => ({
+            Name: row.staff.name,
+            DaysInMonth: row.daysInMonth,
+            WorkDays: row.workDays,
+            OffDays: row.offCount,
+            PaidLeave: row.alCount,
+            LateMins: row.totalLateMins,
+            EarlyMins: row.totalEarlyMins,
+            TotalHours: formatHours(row.totalWorkHours),
+            OvertimeHours: formatHours(row.totalOvertimeHours)
+        }));
+
+        const ws = utils.json_to_sheet(data);
+        utils.book_append_sheet(wb, ws, "Attendance");
+        writeFile(wb, `Attendance_${year}_${month}.xlsx`);
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -173,6 +193,10 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
                         <span>{month.toString().padStart(2, '0')}</span>
                     </h2>
                     <div className="flex gap-2">
+                        <button onClick={handleExportExcel} className="p-1 px-3 bg-green-700 hover:bg-green-600 rounded text-xs text-white transition-colors">
+                            Export XLSX
+                        </button>
+                        <div className="w-px bg-slate-700 mx-2"></div>
                         <button onClick={() => handleMonthChange(-1)} className="p-1 px-3 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition-colors">
                             &larr; Prev
                         </button>
@@ -183,53 +207,55 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
                 </div>
             </div>
 
-            <table className="w-full text-sm text-left text-slate-300 border-collapse">
-                {/* ... table header ... */}
-                <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
-                    <tr>
-                        <th className="px-4 py-3">名前</th>
-                        <th className="px-4 py-3 text-center">月日数</th>
-                        <th className="px-4 py-3 text-center">出勤日数</th>
-                        <th className="px-4 py-3 text-center">休日取得</th>
-                        <th className="px-4 py-3 text-center">有給取得</th>
-                        <th className="px-4 py-3 text-center text-yellow-500">遅刻</th>
-                        <th className="px-4 py-3 text-center text-yellow-500">早退</th>
-                        <th className="px-4 py-3 text-center">総労働時間</th>
-                        <th className="px-4 py-3 text-center">残業時間</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {summary.map((row) => (
-                        <tr key={row.staff.id} className="border-b border-slate-700 hover:bg-slate-700/30">
-                            <td className="px-4 py-3 font-bold text-white flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${row.staff.role === 'THERAPIST' ? 'bg-purple-500' : 'bg-orange-500'}`} />
-                                {row.staff.name}
-                            </td>
-                            <td className="px-4 py-3 text-center">{row.daysInMonth}</td>
-                            <td className="px-4 py-3 text-center font-mono">{row.workDays}</td>
-                            <td className="px-4 py-3 text-center font-mono">
-                                <span className={row.offCount < getRequiredHolidays(month, row.daysInMonth) ? 'text-red-400 font-bold' : 'text-green-400'}>
-                                    {row.offCount}
-                                </span>
-                                <span className="text-slate-500 text-xs"> / {getRequiredHolidays(month, row.daysInMonth)}</span>
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono text-green-400">{row.alCount}</td>
-                            <td className="px-4 py-3 text-center font-mono text-yellow-400">
-                                {row.totalLateMins > 0 ? formatDuration(row.totalLateMins) : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono text-yellow-400">
-                                {row.totalEarlyMins > 0 ? formatDuration(row.totalEarlyMins) : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono font-bold text-[var(--primary)]">
-                                {formatHours(row.totalWorkHours)}
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono text-pink-400">
-                                {formatHours(row.totalOvertimeHours)}
-                            </td>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-slate-300 border-collapse min-w-[800px]">
+                    {/* ... table header ... */}
+                    <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
+                        <tr>
+                            <th className="px-4 py-3 sticky left-0 bg-slate-900 z-10 shadow-r shadow-white/10">名前</th>
+                            <th className="px-4 py-3 text-center">月日数</th>
+                            <th className="px-4 py-3 text-center">出勤日数</th>
+                            <th className="px-4 py-3 text-center">休日取得</th>
+                            <th className="px-4 py-3 text-center">有給取得</th>
+                            <th className="px-4 py-3 text-center text-yellow-500">遅刻</th>
+                            <th className="px-4 py-3 text-center text-yellow-500">早退</th>
+                            <th className="px-4 py-3 text-center">総労働時間</th>
+                            <th className="px-4 py-3 text-center">残業時間</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {summary.map((row) => (
+                            <tr key={row.staff.id} className="border-b border-slate-700 hover:bg-slate-700/30">
+                                <td className="px-4 py-3 font-bold text-white flex items-center gap-2 sticky left-0 bg-slate-800 z-10 shadow-r shadow-white/10">
+                                    <div className={`w-2 h-2 rounded-full ${row.staff.role === 'THERAPIST' ? 'bg-purple-500' : 'bg-orange-500'}`} />
+                                    <span className="whitespace-nowrap">{row.staff.name}</span>
+                                </td>
+                                <td className="px-4 py-3 text-center">{row.daysInMonth}</td>
+                                <td className="px-4 py-3 text-center font-mono">{row.workDays}</td>
+                                <td className="px-4 py-3 text-center font-mono">
+                                    <span className={row.offCount < getRequiredHolidays(month, row.daysInMonth) ? 'text-red-400 font-bold' : 'text-green-400'}>
+                                        {row.offCount}
+                                    </span>
+                                    <span className="text-slate-500 text-xs"> / {getRequiredHolidays(month, row.daysInMonth)}</span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-mono text-green-400">{row.alCount}</td>
+                                <td className="px-4 py-3 text-center font-mono text-yellow-400">
+                                    {row.totalLateMins > 0 ? formatDuration(row.totalLateMins) : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-center font-mono text-yellow-400">
+                                    {row.totalEarlyMins > 0 ? formatDuration(row.totalEarlyMins) : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-center font-mono font-bold text-[var(--primary)]">
+                                    {formatHours(row.totalWorkHours)}
+                                </td>
+                                <td className="px-4 py-3 text-center font-mono text-pink-400">
+                                    {formatHours(row.totalOvertimeHours)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

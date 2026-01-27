@@ -4,6 +4,8 @@ import { useTransition } from 'react';
 import { RefreshCcw } from 'lucide-react';
 import { syncBookingsFromGoogleSheets } from '@/app/actions/sync-google';
 
+import { toast } from 'sonner';
+
 export default function GoogleSyncButton({ date }: { date: string }) {
     const [isPending, startTransition] = useTransition();
 
@@ -11,11 +13,13 @@ export default function GoogleSyncButton({ date }: { date: string }) {
         if (!confirm('Sync latest bookings from Google Sheets? (This will overwrite changes)')) return;
 
         startTransition(async () => {
+            const toastId = toast.loading('Syncing with Google Sheets...');
             const result = await syncBookingsFromGoogleSheets(date);
+
             if (result.success) {
-                alert(result.message);
+                toast.success(result.message, { id: toastId });
             } else {
-                alert(`Error: ${result.message}`);
+                toast.error(`Error: ${result.message}`, { id: toastId, duration: 5000 });
             }
         });
     };

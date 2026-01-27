@@ -1,0 +1,11 @@
+
+model BookingMemo {
+  id        String   @id @default(uuid())
+  date      DateTime
+  time      String
+  persons   Int
+  content   String
+  createdAt DateTime @default(now())
+  
+  @@index([date])
+}

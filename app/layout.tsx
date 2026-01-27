@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: "Attendance Management",
 };
 
+import { Toaster } from 'sonner';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -15,6 +17,7 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning className="h-full">
       <body className="antialiased h-full">
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

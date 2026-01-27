@@ -4,6 +4,8 @@ import Link from 'next/link';
 import ImportButton from '../attendance/ImportButton';
 import DeleteAllButton from '../attendance/DeleteAllButton';
 
+import CopyShiftButton from './CopyShiftButton';
+
 export const dynamic = 'force-dynamic';
 
 type Props = {
@@ -65,6 +67,8 @@ export default async function ShiftManagementPage(props: Props) {
                         </div>
                     </div>
                     <div className="flex items-center gap-4 bg-slate-800 p-2 rounded-lg border border-slate-700">
+                        <CopyShiftButton year={year} month={month + 1} />
+                        <div className="w-px bg-slate-700 h-6"></div>
                         <Link href={`?month=${prevMonthStr}`} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white">
                             &lt; Prev
                         </Link>

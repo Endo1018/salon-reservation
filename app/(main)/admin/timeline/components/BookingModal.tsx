@@ -62,7 +62,7 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                         const hh = d.getHours().toString().padStart(2, '0');
                         const mm = d.getMinutes().toString().padStart(2, '0');
                         setStartTime(`${hh}:${mm}`);
-                        setIsHeadSpaFirst(!!b.isHeadSpaFirst); // Load Order flag
+                        setIsHeadSpaFirst(!!b.isHeadSpaFirstOrder); // Load Order flag
                     }
                 } catch (e) {
                     console.error(e);
@@ -132,9 +132,9 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                     duration,     // Pass duration
                     serviceId,    // Pass serviceId
                     staffId: staffId || null,
-                    staffId2: staffId2 || null,
+                    staffId2: staffId2 || staffId || null, // Resolve "Same as Therapist 1" to Main Staff
                     clientName,
-                    isHeadSpaFirst // Pass flag
+                    isHeadSpaFirstOrder: isHeadSpaFirst // Pass flag
                     // isAroma? Update not yet supported in UI for edit, but ideally should be.
                     // For now, focusing on Create.
                 });
@@ -149,7 +149,7 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                     staffId2: staffId2 || undefined,
                     clientName,
                     isAroma,
-                    isHeadSpaFirst // Pass flag
+                    isHeadSpaFirstOrder: isHeadSpaFirst // Pass flag
                 });
             }
             onClose();

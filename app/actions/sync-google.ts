@@ -132,19 +132,44 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         const staffMap = new Map<string, Staff>(staffList.map((s) => [s.name.trim().toLowerCase(), s]));
         const serviceMap = new Map<string, Service>(serviceList.map((s) => [s.name.trim().toLowerCase(), s]));
 
-        // 4. Clear Existing Bookings for the Month
+        // 4. Calculate Sync Scope (Protect Past Data)
         const startOfMonth = new Date(year, month - 1, 1);
         const endOfMonth = new Date(year, month, 1); // Next month 1st is upper bound
 
-        // Note: endOfMonth logic: new Date(2026, 1, 1) if month is 1. Correct.
-        // Wait, month is 1-12. Date constructor uses 0-11 for month.
-        // startOfMonth = new Date(2026, 0, 1).
-        // endOfMonth = new Date(2026, 1, 1).
-        // Correct.
+        // We only want to sync data from "Yesterday" onwards to preserve manual fixes in the past.
+        const now = new Date();
+        // Convert to Vietnam Time (GMT+7) to determine "Yesterday" relative to store operations
+        const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7 (Approximate for day calc)
 
+        // "Yesterday" at 00:00:00
+        const yesterday = new Date(vietnamTime);
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setUTCHours(0 - 7, 0, 0, 0); // Back to UTC, aligned to VN 00:00
+
+        // The actual start of sync range is the later of:
+        // 1. The start of the target month (don't sync previous months if we are targeting Jan)
+        // 2. Yesterday (don't sync/overwrite bookings from 3 days ago)
+        // However, if the user explicitly requests a month that is entirely in the past (e.g. last year),
+        // we might NOT want to sync it at all if we follow "Yesterday" rule strictly.
+        // BUT, usually Sync Button is on the Timeline view.
+
+        // Let's protect: Max(StartOfMonth, Yesterday)
+        // If Target Month is future, StartOfMonth > Yesterday -> Full Month Sync.
+        // If Target Month is current, Yesterday > StartOfMonth -> Partial Sync (Yesterday+).
+        // If Target Month is past, EndOfMonth < Yesterday -> Nothing to sync (Correct, we shouldn't touch past months).
+
+        const syncStart = (yesterday > startOfMonth) ? yesterday : startOfMonth;
+
+        console.log(`[Sync] Scope: ${syncStart.toISOString()} to ${endOfMonth.toISOString()}`);
+
+        if (syncStart >= endOfMonth) {
+            return { success: true, message: 'Skipped Sync: Target month is entirely in the past (older than yesterday).' };
+        }
+
+        // Clear Existing Bookings (Only within scope)
         await prisma.booking.deleteMany({
             where: {
-                startAt: { gte: startOfMonth, lt: endOfMonth },
+                startAt: { gte: syncStart, lt: endOfMonth },
             },
         });
 
@@ -219,8 +244,8 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 const startAt = new Date(Date.UTC(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), hours - 7, mins));
 
                 // Simple date check
-                if (startAt < startOfMonth || startAt >= endOfMonth) {
-                    console.log(`[Sync] Skipped Row (Date Out of Range): ${startAt.toISOString()} vs [${startOfMonth.toISOString()} - ${endOfMonth.toISOString()}] | Sheet: ${dateStr}`);
+                if (startAt < syncStart || startAt >= endOfMonth) {
+                    // console.log(`[Sync] Skipped Row (Date Out of Range): ${startAt.toISOString()} vs [${syncStart.toISOString()} - ${endOfMonth.toISOString()}]`);
                     continue;
                 }
 
@@ -440,7 +465,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             // Clear existing memos for this month (using UTC range matches)
             await prisma.bookingMemo.deleteMany({
                 where: {
-                    date: { gte: startOfMonthUTC, lt: endOfMonthUTC }
+                    date: { gte: syncStart, lt: endOfMonthUTC }
                 }
             });
 
@@ -491,7 +516,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 const memoDate = new Date(Date.UTC(y, m - 1, d));
 
                 // Comparison
-                if (memoDate >= startOfMonthUTC && memoDate < endOfMonthUTC) {
+                if (memoDate >= syncStart && memoDate < endOfMonthUTC) {
                     await prisma.bookingMemo.create({
                         data: {
                             date: memoDate,
