@@ -61,6 +61,7 @@ export async function toggleStaffActive(id: string, currentStatus: boolean) {
 }
 
 export async function updateStaff(formData: FormData) {
+    const originalId = formData.get('originalId') as string;
     const id = formData.get('id') as string;
     const name = formData.get('name') as string;
     const role = formData.get('role') as string;
@@ -68,9 +69,13 @@ export async function updateStaff(formData: FormData) {
     const commissionRate = Number(formData.get('commissionRate') || 0);
     const incentiveRate = Number(formData.get('incentiveRate') || 0);
 
+    // Use originalId for lookup if provided (renaming case), otherwise use id
+    const targetId = originalId || id;
+
     await prisma.staff.update({
-        where: { id },
+        where: { id: targetId },
         data: {
+            id: id, // Update to new ID (if same, no-op)
             name,
             role,
             baseWage,
@@ -90,7 +95,7 @@ export async function updateStaff(formData: FormData) {
 
     revalidatePath('/admin/staff');
     revalidatePath('/admin/payroll');
-    redirect('/admin/staff?status=updated');
+    // redirect('/admin/staff?status=updated'); // Removed to allow client-side close
 }
 
 export async function deleteStaff(id: string) {

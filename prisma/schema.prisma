@@ -37,7 +37,7 @@ model Shift {
   status  String
   start   String?
   end     String?
-  staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([staffId, date])
 }
@@ -56,7 +56,7 @@ model Attendance {
   isOvertime  Boolean  @default(false)
   overtime    Float    @default(0)
   isManual    Boolean  @default(false)
-  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model PayrollAdjustment {
@@ -79,7 +79,7 @@ model PayrollAdjustment {
   allowanceCommunication Int     @default(0)
   allowanceHousing       Int     @default(0)
   allowanceLanguage      Int     @default(0)
-  staff                  Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staff                  Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([staffId, year, month])
 }
@@ -123,7 +123,7 @@ model Booking {
   customerId  String?
   customer    Customer? @relation(fields: [customerId], references: [id])
   service     Service   @relation(fields: [menuId], references: [id])
-  staff       Staff?    @relation(fields: [staffId], references: [id])
+  staff       Staff?    @relation(fields: [staffId], references: [id], onUpdate: Cascade)
 }
 
 model BookingMemo {

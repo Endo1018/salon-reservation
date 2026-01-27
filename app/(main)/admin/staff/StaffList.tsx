@@ -145,6 +145,7 @@ export default function StaffList({ staffList }: { staffList: Staff[] }) {
 function InputRow({ staff, onCancel }: { staff: Staff, onCancel: () => void }) {
     // Store as strings to allow empty input without forcing 0
     const [formData, setFormData] = useState({
+        id: staff.id, // Add ID to state
         name: staff.name,
         role: staff.role,
         baseWage: String(staff.baseWage),
@@ -164,7 +165,8 @@ function InputRow({ staff, onCancel }: { staff: Staff, onCancel: () => void }) {
 
     const handleSave = () => {
         const data = new FormData();
-        data.append('id', staff.id);
+        data.append('originalId', staff.id); // Send original ID
+        data.append('id', formData.id);      // Send potentially new ID
         data.append('name', formData.name);
         data.append('role', formData.role);
         // Ensure we send "0" if empty, or just send the string and let server handle
@@ -190,7 +192,11 @@ function InputRow({ staff, onCancel }: { staff: Staff, onCancel: () => void }) {
     return (
         <>
             <td className="p-4 font-mono text-slate-400">
-                {staff.id}
+                <input
+                    value={formData.id}
+                    onChange={e => setFormData({ ...formData, id: e.target.value })}
+                    className="bg-slate-900 border border-slate-600 rounded p-1 w-full text-white font-mono"
+                />
             </td>
             <td className="p-4">
                 <input
