@@ -62,7 +62,7 @@ export default async function StaffManagement(props: Props) {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs text-slate-400 mb-1">Base Wage (Hourly)</label>
+                            <label className="block text-xs text-slate-400 mb-1">Base Wage (Monthly)</label>
                             <input name="baseWage" type="number" placeholder="50000" required
                                 className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white" />
                         </div>
