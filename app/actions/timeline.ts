@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
+import type { Service } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { findFreeResource, isResourceFree, getPoolByResourceId, resourcePools } from '@/app/services/booking-service';
 
@@ -329,7 +330,7 @@ export async function updateBooking(id: string, data: {
     if (!target) throw new Error('Booking not found');
 
     // 2. Fetch New Service
-    let service = target.service;
+    let service: Service | null = target.service;
     if (data.serviceId && data.serviceId !== target.menuId) {
         service = await prisma.service.findUnique({ where: { id: data.serviceId } });
         if (!service) throw new Error('Service not found');
@@ -651,11 +652,26 @@ export async function getMonthlyStaffSummary(year: number, month: number) {
         const totalHours = totalMs / (1000 * 60 * 60);
         const totalCommission = Math.floor(totalHours * (staff.commissionRate || 0));
 
+        // Count "Tours" (deduplicate by comboLinkId)
+        const processedCombos = new Set<string>();
+        let bookingCount = 0;
+
+        for (const b of staffBookings) {
+            if (b.comboLinkId) {
+                if (!processedCombos.has(b.comboLinkId)) {
+                    bookingCount++;
+                    processedCombos.add(b.comboLinkId);
+                }
+            } else {
+                bookingCount++;
+            }
+        }
+
         return {
             id: staff.id,
             name: staff.name,
             totalMinutes: Math.floor(totalMs / 60000),
-            bookingCount: staffBookings.length,
+            bookingCount: bookingCount,
             commissionRate: staff.commissionRate || 0,
             totalCommission
         };

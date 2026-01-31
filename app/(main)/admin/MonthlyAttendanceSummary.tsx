@@ -194,14 +194,14 @@ export default function MonthlyAttendanceSummary({ staffList, shifts, attendance
                     </h2>
                     <div className="flex gap-2">
                         <button onClick={handleExportExcel} className="p-1 px-3 bg-green-700 hover:bg-green-600 rounded text-xs text-white transition-colors">
-                            Export XLSX
+                            Excel出力
                         </button>
                         <div className="w-px bg-slate-700 mx-2"></div>
                         <button onClick={() => handleMonthChange(-1)} className="p-1 px-3 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition-colors">
-                            &larr; Prev
+                            &larr; 前月
                         </button>
                         <button onClick={() => handleMonthChange(1)} className="p-1 px-3 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition-colors">
-                            Next &rarr;
+                            翌月 &rarr;
                         </button>
                     </div>
                 </div>

@@ -120,26 +120,47 @@ export default function TimelineGraph({ date, resources, initialBookings }: Prop
                                     ))}
 
                                     {/* Bookings */}
-                                    {bookings.filter(b => b.resourceId === r.id).map(b => (
-                                        <div key={b.id}
-                                            className={`absolute top-1 bottom-1 rounded text-white text-xs px-1 py-0.5 overflow-hidden shadow-sm border border-white/20 select-none hover:brightness-110 z-10 group/booking ${getStaffColorClass(b.staffName)} cursor-pointer flex flex-col justify-center`}
-                                            style={{
-                                                left: getPosition(new Date(b.startAt)),
-                                                width: getWidth(new Date(b.startAt), new Date(b.endAt))
-                                            }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleBookingClick(b.id);
-                                            }}
-                                            title={`${b.clientName} (${b.menuName}) w/ ${b.staffName}`}
-                                        >
-                                            <div className="font-bold truncate text-[10px] leading-3">
-                                                {new Date(b.startAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} - {new Date(b.endAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                    {bookings.filter(b => b.resourceId === r.id).map(b => {
+                                        const start = new Date(b.startAt);
+                                        const end = new Date(b.endAt);
+
+                                        // Calculate effective range relative to timeline start (10:00)
+                                        const startH = start.getHours() + start.getMinutes() / 60;
+                                        const endH = end.getHours() + end.getMinutes() / 60;
+
+                                        // Skip if ends before startHour
+                                        if (endH <= startHour) return null;
+
+                                        // Clamp start to startHour
+                                        const effStartH = Math.max(startH, startHour);
+                                        // Duration in hours
+                                        const effDuration = endH - effStartH;
+
+                                        // Calculate pixels
+                                        const left = (effStartH - startHour) * hourWidth;
+                                        const width = effDuration * hourWidth;
+
+                                        return (
+                                            <div key={b.id}
+                                                className={`absolute top-1 bottom-1 rounded text-white text-xs px-1 py-0.5 overflow-hidden shadow-sm border border-white/20 select-none hover:brightness-110 z-10 group/booking ${getStaffColorClass(b.staffName)} cursor-pointer flex flex-col justify-center`}
+                                                style={{
+                                                    left: left,
+                                                    width: width
+                                                }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleBookingClick(b.id);
+                                                }}
+                                                title={`${b.clientName} (${b.menuName}) w/ ${b.staffName}`}
+                                            >
+                                                <div className="font-bold truncate text-[10px] leading-3">
+                                                    {start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} - {end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <div className="truncate text-[9px] leading-none mt-0.5">{b.menuName}</div>
+                                                <div className="truncate text-[9px] leading-none opacity-90">{b.staffName}</div>
                                             </div>
-                                            <div className="truncate text-[9px] leading-none mt-0.5">{b.menuName}</div>
-                                            <div className="truncate text-[9px] leading-none opacity-90">{b.staffName}</div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             ))}
                         </div>

@@ -48,7 +48,7 @@ export default function SummaryPage() {
     return (
         <div className="flex-1 bg-slate-950 p-6 overflow-auto text-slate-200">
             <header className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl font-bold text-white">Monthly Staff Summary</h1>
+                <h1 className="text-2xl font-bold text-white">月次スタッフ集計</h1>
                 <div className="flex items-center gap-4 bg-slate-900 p-2 rounded-lg border border-slate-800">
                     <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-800 rounded">←</button>
                     <span className="font-bold w-32 text-center text-lg">{year} / {month.toString().padStart(2, '0')}</span>
@@ -57,7 +57,7 @@ export default function SummaryPage() {
             </header>
 
             {isLoading ? (
-                <div className="text-center py-20 text-slate-500">Loading data...</div>
+                <div className="text-center py-20 text-slate-500">読み込み中...</div>
             ) : (
                 <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
                     <table className="w-full text-left">
@@ -90,7 +90,7 @@ export default function SummaryPage() {
                             })}
                             {summary.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="p-8 text-center text-slate-500">No data found for this month.</td>
+                                    <td colSpan={5} className="p-8 text-center text-slate-500">この月のデータはありません。</td>
                                 </tr>
                             )}
                         </tbody>
