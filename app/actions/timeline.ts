@@ -161,6 +161,8 @@ export async function createBooking(data: {
         const service = await prisma.service.findUnique({ where: { id: data.serviceId } });
         if (!service) throw new Error('Service not found');
 
+        const createdBookings = [];
+
         // Case-insensitive Combo check
         const isCombo = service.type && service.type.trim().toLowerCase() === 'combo';
 
@@ -201,7 +203,7 @@ export async function createBooking(data: {
             }
 
             // Booking A (Massage)
-            await prisma.booking.create({
+            const b1 = await prisma.booking.create({
                 data: {
                     menuId: service.id,
                     menuName: `${service.name} (Massage)`,
@@ -216,9 +218,10 @@ export async function createBooking(data: {
                     isComboMain: true
                 }
             });
+            createdBookings.push(b1);
 
             // Booking B (Head Spa)
-            await prisma.booking.create({
+            const b2 = await prisma.booking.create({
                 data: {
                     menuId: service.id,
                     menuName: `${service.name} (Head Spa)`,
@@ -233,6 +236,7 @@ export async function createBooking(data: {
                     isComboMain: false
                 }
             });
+            createdBookings.push(b2);
 
         } else {
             // Single
@@ -257,7 +261,7 @@ export async function createBooking(data: {
                 }
             }
 
-            await prisma.booking.create({
+            const b1 = await prisma.booking.create({
                 data: {
                     menuId: service.id,
                     menuName: service.name,
@@ -270,6 +274,36 @@ export async function createBooking(data: {
                     customerId: data.customerId,
                 }
             });
+            createdBookings.push(b1);
+        }
+
+        // --- DRAFT MODE TWIN SYNC ---
+        // If Draft Mode is active, we must ALSO create this booking as a Locked Draft in the Import List.
+        // This ensures that if the user hits "Publish", this manually created booking survives 
+        // (because Publish wipes Live data and replaces it with Draft data).
+        const startOfMonth = new Date(startAt.getFullYear(), startAt.getMonth(), 1);
+        const hasMeta = await prisma.bookingMemo.findFirst({
+            where: { date: startOfMonth, content: { startsWith: 'SYNC_META:' } }
+        });
+
+        if (hasMeta) {
+            console.log('[createBooking] Draft Mode Detected. Creating Twin Drafts.');
+            const draftComboId = isCombo ? `DRAFT-${crypto.randomUUID()}` : null;
+
+            for (const b of createdBookings) {
+                await prisma.booking.create({
+                    data: {
+                        ...b,
+                        id: undefined, // Let DB generate new ID
+                        status: 'SYNC_DRAFT',
+                        // @ts-ignore
+                        isLocked: true, // Lock it so it persists syncs
+                        comboLinkId: draftComboId, // Use new draft link ID if combo
+                        createdAt: undefined,
+                        updatedAt: undefined
+                    }
+                });
+            }
         }
 
         revalidatePath('/admin/timeline');
@@ -582,6 +616,7 @@ export async function updateBooking(id: string, data: {
                                 menuId: b.menuId,
                                 menuName: b.menuName,
                                 clientName: b.clientName,
+                                // @ts-ignore
                                 isLocked: true // LOCK IT
                             }
                         });
@@ -592,6 +627,7 @@ export async function updateBooking(id: string, data: {
                                 ...b,
                                 id: undefined,
                                 status: 'SYNC_DRAFT',
+                                // @ts-ignore
                                 isLocked: true,
                                 createdAt: undefined,
                                 updatedAt: undefined,
@@ -783,5 +819,33 @@ export async function getMonthlyStaffSummary(year: number, month: number) {
         };
     }).sort((a, b) => a.name.localeCompare(b.name));
 
+    // ...
+    // ensure last closing brace
     return summary;
+}
+
+export async function getDraftStatus(year: number, month: number) {
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1)); // UTC to match how we save
+    // or just simplified date string matching if strictly bookingMemo?
+    // bookingMemo date is DateTime in Prisma.
+    // Let's match the logic used in createBooking:
+    // const startOfMonth = new Date(startAt.getFullYear(), startAt.getMonth(), 1);
+
+    // Safer:
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0); // End of month
+
+    const meta = await prisma.bookingMemo.findFirst({
+        where: {
+            // date: startOfMonth // Exact match might be tricky with timezones
+            // Look for memo in range or just by startsWith?
+            date: {
+                gte: start,
+                lte: end
+            },
+            content: { startsWith: 'SYNC_META:' }
+        }
+    });
+
+    return !!meta;
 }

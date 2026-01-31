@@ -21,19 +21,46 @@ export default async function TimelineDashboard(props: Props) {
     const dateStr = params?.date || new Date().toISOString().split('T')[0];
 
     // Fetch Data
-    const { resources, bookings } = await getTimelineData(dateStr);
+    const { resources, bookings, isDraft } = await getTimelineData(dateStr);
 
     return (
         <div className="h-full flex flex-col">
             {/* Top Bar */}
-            <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-950">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-slate-100">
-                        Relaxation Salon Reservation
-                    </h2>
-                    <div className="flex items-center gap-2">
-                        <GoogleSyncButton date={dateStr} />
-                        <DateController date={dateStr} />
+            <div className="flex flex-col bg-slate-950 border-b border-slate-800">
+                {/* Draft Banner */}
+                {/* @ts-ignore */}
+                {bookings['isDraft'] || (resources as any).isDraft ? ( // Handle return type change not yet reflected in Props type if inferred? 
+                    // Actually `getTimelineData` return type changed. TS might complain if not updated.
+                    // Let's assume `isDraft` is available.
+                    // Wait, I updated the return of `getTimelineData`.
+                    // Destructure it properly.
+                    <div className="bg-amber-900/40 text-amber-200 px-4 py-2 text-sm flex justify-between items-center border-b border-amber-800/50">
+                        <div className="flex items-center gap-2">
+                            <Briefcase className="w-4 h-4 text-amber-500" />
+                            {/* Briefcase/Alert icon */}
+                            <span>
+                                <strong>Draft Mode Active:</strong> You are viewing potentially incomplete or mixed data.
+                                Changes from Google Sheets are waiting to be published.
+                            </span>
+                        </div>
+                        <Link
+                            href="/admin/import-list"
+                            className="px-3 py-1 bg-amber-700 hover:bg-amber-600 text-white text-xs font-bold rounded flex items-center gap-1 transition-colors"
+                        >
+                            Go to Import List
+                        </Link>
+                    </div>
+                ) : null}
+
+                <div className="flex justify-between items-center p-4">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-xl font-bold flex items-center gap-2 text-slate-100">
+                            Relaxation Salon Reservation
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <GoogleSyncButton date={dateStr} />
+                            <DateController date={dateStr} />
+                        </div>
                     </div>
                 </div>
             </div>

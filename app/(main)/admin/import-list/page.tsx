@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getImportListData, ImportLayoutRow } from '@/app/actions/import-list';
 import { syncBookingsFromGoogleSheets } from '@/app/actions/sync-google';
 import { publishDrafts } from '@/app/actions/publish-draft';
@@ -9,20 +9,181 @@ import { deleteDraft } from '@/app/actions/delete-draft';
 import { toast } from 'sonner';
 import { RefreshCcw, Check, AlertTriangle, Lock, Trash2, Edit } from 'lucide-react';
 
-// ... existing imports ...
 import TimelineNav from '../timeline/components/TimelineNav';
+import StaffSummarySection from './components/StaffSummarySection';
+
+// Sort Config Type
+type SortConfig = {
+    key: keyof ImportLayoutRow | '';
+    direction: 'asc' | 'desc';
+};
 
 export default function ImportListPage() {
-    // ... state ...
+    // Top-level Date State
+    const today = new Date();
+    const [year, setYear] = useState(today.getFullYear());
+    const [month, setMonth] = useState(today.getMonth() + 1);
 
-    // ... useEffect ...
+    // Data State
+    const [rows, setRows] = useState<ImportLayoutRow[]>([]);
+    const [isDraft, setIsDraft] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+
+    // UI State
+    const [filterStaff, setFilterStaff] = useState('');
+    const [filterDate, setFilterDate] = useState('');
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'asc' });
+
+    // Edit Modal State
+    const [editingRow, setEditingRow] = useState<ImportLayoutRow | null>(null);
+    const [editForm, setEditForm] = useState({ startTime: '' });
+
+    // Load Data Effect
+    useEffect(() => {
+        loadData();
+    }, [year, month]);
+
+    const loadData = async () => {
+        try {
+            const data = await getImportListData(year, month);
+            // Convert strings/dates safely if needed, though Server Actions sanitize
+            setRows(data.rows);
+            setIsDraft(data.isDraft);
+        } catch (e) {
+            console.error("Failed to load import list:", e);
+            toast.error("Failed to load data.");
+        }
+    };
+
+    // Actions
+    const handleSync = async () => {
+        if (confirm('Google Sheetsから同期しますか？\n(現在のドラフトは上書きされます)')) {
+            setIsSyncing(true);
+            try {
+                const result = await syncBookingsFromGoogleSheets(year, month);
+                toast.success(result.message);
+                await loadData();
+            } catch (e) {
+                console.error(e);
+                toast.error("Sync failed");
+            } finally {
+                setIsSyncing(false);
+            }
+        }
+    };
+
+    const handlePublish = async () => {
+        if (confirm('ドラフトを公開しますか？\n(Timelineに反映され、現在のLiveデータは置き換えられます)')) {
+            setIsPublishing(true);
+            try {
+                await publishDrafts(year, month);
+                toast.success("Published successfully!");
+                await loadData();
+            } catch (e) {
+                console.error(e);
+                toast.error("Publish failed");
+            } finally {
+                setIsPublishing(false);
+            }
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (confirm('このドラフトを削除しますか？')) {
+            try {
+                await deleteDraft(id);
+                toast.success("Deleted draft");
+                await loadData();
+            } catch (e) {
+                toast.error("Delete failed");
+            }
+        }
+    };
+
+    const openEdit = (row: ImportLayoutRow) => {
+        // extract time HH:mm from date or use dummy
+        const timeStr = row.date instanceof Date
+            ? row.date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+            : '00:00';
+        setEditForm({ startTime: timeStr });
+        setEditingRow(row);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingRow) return;
+        try {
+            await updateDraft(editingRow.id, {
+                startTime: editForm.startTime,
+                // Add validation or other fields?
+            });
+            toast.success("Draft updated (Reserved/Locked)");
+            setEditingRow(null);
+            await loadData();
+        } catch (e) {
+            console.error(e);
+            toast.error("Update failed");
+        }
+    };
+
+    const handleSort = (key: keyof ImportLayoutRow) => {
+        setSortConfig(current => ({
+            key,
+            direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    // Filtering & Sorting
+    const uniqueStaff = useMemo(() => {
+        const staffSet = new Set<string>();
+        rows.forEach(r => {
+            if (r.staff1) staffSet.add(r.staff1);
+            if (r.staff2) staffSet.add(r.staff2);
+        });
+        return Array.from(staffSet).sort();
+    }, [rows]);
+
+    const visibleRows = useMemo(() => {
+        let result = [...rows];
+
+        // Filter
+        if (filterStaff) {
+            result = result.filter(r => r.staff1 === filterStaff || r.staff2 === filterStaff);
+        }
+        if (filterDate) {
+            const dateStr = new Date(filterDate).toDateString();
+            result = result.filter(r => new Date(r.date).toDateString() === dateStr);
+        }
+
+        // Sort
+        if (sortConfig.key) {
+            result.sort((a, b) => {
+                const valA = a[sortConfig.key as keyof ImportLayoutRow];
+                const valB = b[sortConfig.key as keyof ImportLayoutRow];
+
+                if (valA === valB) return 0;
+
+                // Date handling
+                if (valA instanceof Date && valB instanceof Date) {
+                    return sortConfig.direction === 'asc'
+                        ? valA.getTime() - valB.getTime()
+                        : valB.getTime() - valA.getTime();
+                }
+
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            });
+        }
+
+        return result;
+    }, [rows, filterStaff, filterDate, sortConfig]);
 
     return (
         <div className="flex flex-col h-full bg-slate-950 text-slate-200 overflow-hidden">
             <TimelineNav />
 
             <div className="flex flex-col h-full p-6 overflow-hidden">
-                <header className="flex flex-col gap-4 mb-6">
+                <header className="flex flex-col gap-4 mb-2">
                     <div className="flex justify-between items-center">
                         <div>
                             <h1 className="text-2xl font-bold text-white mb-1">Imported Booking List</h1>
@@ -30,9 +191,8 @@ export default function ImportListPage() {
                         </div>
                     </div>
 
-                    {/* Filter Bar (Like Attendance) */}
+                    {/* Filter Bar */}
                     <div className="flex flex-wrap gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700 items-end">
-
                         {/* Staff Filter */}
                         <div className="flex flex-col">
                             <label className="text-xs text-slate-500 mb-1">スタッフ</label>
@@ -59,7 +219,7 @@ export default function ImportListPage() {
                                         const [y, m] = e.target.value.split('-').map(Number);
                                         setYear(y);
                                         setMonth(m);
-                                        setFilterDate(''); // Clear date filter when changing month
+                                        setFilterDate(''); // Clear date filter
                                     }
                                 }}
                                 className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white"
@@ -74,7 +234,6 @@ export default function ImportListPage() {
                                 value={filterDate}
                                 onChange={(e) => {
                                     setFilterDate(e.target.value);
-                                    // Optional: If date is picked, maybe jump to that month?
                                     if (e.target.value) {
                                         const d = new Date(e.target.value);
                                         if (!isNaN(d.getTime())) {
@@ -131,6 +290,9 @@ export default function ImportListPage() {
                     )}
                 </header>
 
+                {/* Summary Section */}
+                <StaffSummarySection year={year} month={month} />
+
                 <div className="flex-1 overflow-auto border border-slate-800 rounded bg-slate-900">
                     <table className="w-full text-left border-collapse text-sm">
                         <thead className="bg-slate-950 text-slate-400 sticky top-0 z-10 shadow-sm">
@@ -159,12 +321,12 @@ export default function ImportListPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-800">
                             {visibleRows.map(row => (
-                                <tr key={row.id} className={`hover:bg-slate-800 transition-colors ${row.isLocked ? 'bg-slate-900/50' : ''}`}>
+                                <tr key={row.id} className={`hover:bg-slate-800 transition-colors ${row.isLocked ? 'bg-slate-900/50' : row.status === 'SYNC_DRAFT' ? 'bg-sky-900/10' : ''}`}>
                                     <td className="p-3 text-slate-300 font-mono">
-                                        {row.date.toLocaleDateString('ja-JP')}
+                                        {new Date(row.date).toLocaleDateString('ja-JP')}
                                     </td>
                                     <td className="p-3 text-slate-300 font-mono">
-                                        {row.date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(row.date).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                                     </td>
                                     <td className="p-3 font-medium text-white">{row.clientName}</td>
                                     <td className="p-3 text-emerald-400">{row.menu1}</td>
