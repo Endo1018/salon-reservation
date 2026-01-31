@@ -31,8 +31,13 @@ export default async function TimelineDashboard(props: Props) {
                     <h2 className="text-xl font-bold flex items-center gap-2 text-slate-100">
                         Relaxation Salon Reservation
                     </h2>
-                    <DateController date={dateStr} />
-                    <GoogleSyncButton date={dateStr} />
+                    <div className="flex items-center gap-2">
+                        <Link href="/admin/import-list" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded border border-slate-700 transition-colors">
+                            📊 Import List
+                        </Link>
+                        <GoogleSyncButton date={dateStr} />
+                        <DateController date={dateStr} />
+                    </div>
                 </div>
             </div>
 
