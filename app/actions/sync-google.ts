@@ -158,8 +158,8 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         // If Target Month is current, Yesterday > StartOfMonth -> Partial Sync (Yesterday+).
         // If Target Month is past, EndOfMonth < Yesterday -> Nothing to sync (Correct, we shouldn't touch past months).
 
-        // const syncStart = (yesterday > startOfMonth) ? yesterday : startOfMonth;
-        const syncStart = startOfMonth; // FORCE FULL SYNC (Admin Override)
+        const syncStart = (yesterday > startOfMonth) ? yesterday : startOfMonth;
+        // const syncStart = startOfMonth; // FORCE FULL SYNC (Admin Override)
 
         console.log(`[Sync] Scope: ${syncStart.toISOString()} to ${endOfMonth.toISOString()}`);
 
