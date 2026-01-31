@@ -217,7 +217,7 @@ export default function ImportListPage() {
                                 value={`${year}-${month.toString().padStart(2, '0')}`}
                                 onChange={(e) => {
                                     if (e.target.value) {
-                                        const [y, m] = e.target.value.split('-').map(Number);
+                                        const [y, m] = e.target.value.split('-').map(v => Number(v));
                                         setYear(y);
                                         setMonth(m);
                                         setFilterDate(''); // Clear date filter
