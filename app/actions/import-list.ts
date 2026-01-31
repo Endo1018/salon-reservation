@@ -13,17 +13,65 @@ export type ImportLayoutRow = {
     time2: number;
     staff1: string;
     staff2: string;
+    status: string; // Add status
 };
 
 export async function getImportListData(year: number, month: number) {
     const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
-    const endOfMonth = new Date(Date.UTC(year, month, 1)); // Exclusive
+    const endOfMonth = new Date(Date.UTC(year, month, 1));
+
+    // Check for Draft Mode
+    const meta = await prisma.bookingMemo.findFirst({
+        where: { date: startOfMonth, content: { startsWith: 'SYNC_META:' } }
+    });
+
+    const isDraft = !!meta;
+    let cutoff = endOfMonth; // Default: If no draft, everything is live (cutoff at end)
+
+    if (meta) {
+        const iso = meta.content.replace('SYNC_META:', '');
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) cutoff = d;
+    }
+
+    // Build Query
+    // We want:
+    // 1. Confirmed BEFORE cutoff
+    // 2. Drafts AFTER cutoff (actually status=SYNC_DRAFT check is safer)
+
+    // Actually, prisma OR is easiest:
+    // OR: [
+    //   { startAt: { lt: cutoff }, status: 'Confirmed' }, -- Live Pasts
+    //   { startAt: { gte: cutoff }, status: 'SYNC_DRAFT' } -- Draft Futures
+    // ]
+    // But wait, what about Unchanged Futures? The Sync deletes Confirmed in scope?
+    // The previous STEP (sync) only deleted `SYNC_DRAFT`. It did NOT delete `Confirmed`.
+    // So we have BOTH `Confirmed` and `Draft` in the future.
+    // We want to HIDE the `Confirmed` futures in this list if we are in Draft Mode.
+
+    const whereClause = isDraft ? {
+        startAt: { gte: startOfMonth, lt: endOfMonth },
+        OR: [
+            { startAt: { lt: cutoff }, status: { in: ['Confirmed', 'SYNC_DRAFT'] } }, // Include drafts if any weirdly in past? No, just Confirmed.
+            { startAt: { gte: cutoff }, status: 'SYNC_DRAFT' } // Only show drafts for future
+        ]
+    } : {
+        startAt: { gte: startOfMonth, lt: endOfMonth },
+        status: { not: 'Cancelled' }, // Standard Live View
+        // Note: If we have leftover drafts but no Meta? Should ignore drafts.
+        // So add: status: { not: 'SYNC_DRAFT' } if !isDraft
+    };
+
+    if (!isDraft) {
+        // @ts-ignore
+        whereClause.status = { in: ['Confirmed', 'Confirmed'] }; // Simplify: Just not Cancelled/Draft
+        // @ts-ignore
+        whereClause.AND = [{ status: { not: 'Cancelled' } }, { status: { not: 'SYNC_DRAFT' } }];
+    }
 
     const bookings = await prisma.booking.findMany({
-        where: {
-            startAt: { gte: startOfMonth, lt: endOfMonth },
-            status: { not: 'Cancelled' },
-        },
+        // @ts-ignore
+        where: whereClause,
         include: { staff: true, service: true },
         orderBy: { startAt: 'asc' }
     });
@@ -59,6 +107,7 @@ export async function getImportListData(year: number, month: number) {
                 time2: sub ? (sub.service?.duration || (sub.endAt.getTime() - sub.startAt.getTime()) / 60000) : 0,
                 staff1: main.staff?.name || '',
                 staff2: sub?.staff?.name || '',
+                status: main.status
             });
 
         } else {
@@ -74,10 +123,14 @@ export async function getImportListData(year: number, month: number) {
                 time2: 0,
                 staff1: booking.staff?.name || '',
                 staff2: '',
+                status: booking.status
             });
         }
     }
 
     // Sort by Date then Time
-    return rows.sort((a, b) => a.date.getTime() - b.date.getTime());
+    return {
+        rows: rows.sort((a, b) => a.date.getTime() - b.date.getTime()),
+        isDraft
+    };
 }

@@ -167,10 +167,36 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             return { success: true, message: 'Skipped Sync: Target month is entirely in the past (older than yesterday).' };
         }
 
-        // Clear Existing Bookings (Only within scope)
+        // --- SAVE SYNC METADATA ---
+        // We store the syncStart date so the "Publish" action knows where to start replacing data.
+        // Stored as a special BookingMemo on the 1st of the month.
+        const metaDate = new Date(Date.UTC(year, month - 1, 1)); // 1st
+
+        // Remove old meta
+        await prisma.bookingMemo.deleteMany({
+            where: {
+                date: metaDate,
+                content: { startsWith: 'SYNC_META:' }
+            }
+        });
+
+        // Create new meta
+        await prisma.bookingMemo.create({
+            data: {
+                date: metaDate,
+                time: '00:00',
+                persons: 0,
+                content: `SYNC_META:${syncStart.toISOString()}`,
+                hasCome: false
+            }
+        });
+
+        // Clear Existing DRAFTS (Only within scope)
+        // We do NOT delete Confirmed bookings yet.
         await prisma.booking.deleteMany({
             where: {
                 startAt: { gte: syncStart, lt: endOfMonth },
+                status: 'SYNC_DRAFT',
             },
         });
 
@@ -412,7 +438,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                             resourceId: resId1!,
                             startAt: startAt1,
                             endAt: endAt1,
-                            status: 'Confirmed',
+                            status: 'SYNC_DRAFT', // Changed from Confirmed
                             clientName: clientName,
                             comboLinkId: comboLinkId,
                             isComboMain: isCombo,
@@ -428,7 +454,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                                 resourceId: resId2!,
                                 startAt: startAt2,
                                 endAt: endAt2,
-                                status: 'Confirmed',
+                                status: 'SYNC_DRAFT', // Changed from Confirmed
                                 clientName: clientName,
                                 comboLinkId: comboLinkId,
                                 isComboMain: false,

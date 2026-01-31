@@ -111,7 +111,8 @@ export async function getTimelineData(dateStr: string) {
     const bookings = await prisma.booking.findMany({
         where: {
             startAt: { gte: startOfDay },
-            endAt: { lte: endOfDay }
+            endAt: { lte: endOfDay },
+            status: { not: 'SYNC_DRAFT' } // Hide drafts
         },
         include: {
             staff: { select: { name: true } },

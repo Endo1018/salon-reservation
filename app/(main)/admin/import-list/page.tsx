@@ -3,13 +3,16 @@
 import { useState, useEffect, useTransition } from 'react';
 import { getImportListData, ImportLayoutRow } from '@/app/actions/import-list';
 import { syncBookingsFromGoogleSheets } from '@/app/actions/sync-google';
+import { publishDrafts } from '@/app/actions/publish-draft';
 import { toast } from 'sonner';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, Check, AlertTriangle } from 'lucide-react'; // Add Icons
 
 export default function ImportListPage() {
     const [rows, setRows] = useState<ImportLayoutRow[]>([]);
+    const [isDraft, setIsDraft] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isSyncing, startTransition] = useTransition();
+    const [isPublishing, startPublish] = useTransition();
 
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
@@ -83,7 +86,8 @@ export default function ImportListPage() {
         setLoading(true);
         try {
             const data = await getImportListData(year, month);
-            setRows(data);
+            setRows(data.rows);
+            setIsDraft(data.isDraft);
         } catch (error) {
             console.error(error);
             toast.error("Failed to load list");
@@ -97,7 +101,7 @@ export default function ImportListPage() {
     }, [year, month]);
 
     const handleSync = () => {
-        if (!confirm('Warning: This will force re-import ALL bookings for this month from Google Sheets. Continue?')) return;
+        if (!confirm('This will fetch latest data from Google Sheets as a DRAFT. \nLive timeline will NOT be updated until you click "Publish". \nContinue?')) return;
 
         startTransition(async () => {
             const toastId = toast.loading('Syncing all data...');
@@ -107,7 +111,22 @@ export default function ImportListPage() {
 
             if (result.success) {
                 toast.success(result.message, { id: toastId });
-                fetchData(); // Refresh list after sync
+                fetchData(); // Refresh list to show drafts
+            } else {
+                toast.error(result.message, { id: toastId });
+            }
+        });
+    };
+
+    const handlePublish = () => {
+        if (!confirm('Are you sure you want to PUBLISH these changes to the live Timeline? \nThis will replace the current data.')) return;
+
+        startPublish(async () => {
+            const toastId = toast.loading('Publishing...');
+            const result = await publishDrafts(year, month);
+            if (result.success) {
+                toast.success(result.message, { id: toastId });
+                fetchData(); // Refresh to show Live state
             } else {
                 toast.error(result.message, { id: toastId });
             }
@@ -198,13 +217,33 @@ export default function ImportListPage() {
                     {/* Sync Button */}
                     <button
                         onClick={handleSync}
-                        disabled={isSyncing}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                        disabled={isSyncing || isPublishing}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50"
                     >
                         <RefreshCcw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                        {isSyncing ? 'Syncing...' : 'Sync Now'}
+                        {isSyncing ? 'Syncing...' : 'Fetch Draft'}
                     </button>
+
+                    {/* Publish Button (Only if Draft) */}
+                    {isDraft && (
+                        <button
+                            onClick={handlePublish}
+                            disabled={isPublishing || isSyncing}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50 animate-pulse"
+                        >
+                            <Check className="w-4 h-4" />
+                            {isPublishing ? 'Publishing...' : 'Publish to Timeline'}
+                        </button>
+                    )}
                 </div>
+
+                {/* Draft Banner */}
+                {isDraft && (
+                    <div className="w-full bg-amber-900/50 border border-amber-700 text-amber-200 px-4 py-2 rounded flex items-center gap-2 text-sm">
+                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        <span>PREVIEW MODE: You are viewing DRAFT data. This has NOT been applied to the Timeline yet. Click "Publish" to go live.</span>
+                    </div>
+                )}
             </header>
 
             <div className="flex-1 overflow-auto border border-slate-800 rounded bg-slate-900">
