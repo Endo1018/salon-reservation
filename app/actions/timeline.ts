@@ -514,6 +514,95 @@ export async function updateBooking(id: string, data: {
 
         await Promise.all(updatePromises);
 
+        // --- DRAFT SYNC LOGIC ---
+        // If we are in Draft Mode, we must ensure this change is reflected in Import List.
+        // If we edited a Live booking, and there is a Draft Mode active, 
+        // we should create a Locked Draft so it persists.
+
+        // Check if Draft Mode is active for this month
+        const startOfMonth = new Date(startAt.getFullYear(), startAt.getMonth(), 1);
+        const hasMeta = await prisma.bookingMemo.findFirst({
+            where: { date: startOfMonth, content: { startsWith: 'SYNC_META:' } }
+        });
+
+        if (hasMeta) {
+            console.log('[updateBooking] Draft Mode Detected. Ensuring Locked Draft exists.');
+            // Only relevant if we edited a LIVE booking (not SYNC_DRAFT)?
+            // `updateBooking` updates whatever ID we passed. 
+            // If we edited a `Confirmed` booking, we want to CLONE it to `SYNC_DRAFT` (Locked).
+            if (target.status !== 'SYNC_DRAFT') {
+                // Check if a draft already exists for this booking ID? 
+                // Usually Drafts are new rows.
+                // We want to create a Draft that REPLACES this Live one in the user's view (Import List).
+                // Import List view priority: Draft > Live.
+                // If we create a SYNC_DRAFT with same derived props, it shows up.
+
+                // Simplified: Just create a SYNC_DRAFT (Locked).
+                // But avoid duplicates.
+                // Let's see if we can find a Draft at the same time/resource?
+                // This is tricky.
+                // For now, let's simpler: Just UPDATE the Live booking (done above).
+                // AND Create/Update a Locked Draft.
+
+                // If target was part of a combo, we need to replicate the whole combo as Draft.
+                // This is getting complex.
+                // User requirement: "timelineで編集した場合（担当など）importlistに反映してください"
+                // If we only update Live, and Import List is showing Drafts (for future), 
+                // then the user won't see this change in Import List if the Import List logic hides Live futures.
+                // In `getImportListData` / `getMonthlyStaffSummary`: Future = SYNC_DRAFT. Live is HIDDEN.
+                // So updating Live is INVISIBLE in Import List for future dates!
+                // So we MUST create a SYNC_DRAFT.
+
+                const bookingsToClone = target.comboLinkId
+                    ? await prisma.booking.findMany({ where: { comboLinkId: target.comboLinkId } })
+                    : [await prisma.booking.findUniqueOrThrow({ where: { id } })];
+
+                for (const b of bookingsToClone) { // Use updated data from DB? 
+                    // Wait, `bookingsToClone` fetches OLD data if transaction hasn't committed or race?
+                    // `updatePromises` awaited above. So `findMany` should return NEW data.
+                    // Iterate and Clone.
+
+                    // Check if a locked draft already exists for this?
+                    // We don't have a link.
+                    // But we can check if there's a SYNC_DRAFT at same time/resource.
+                    const existingDraft = await prisma.booking.findFirst({
+                        where: {
+                            startAt: b.startAt,
+                            resourceId: b.resourceId,
+                            status: 'SYNC_DRAFT'
+                        }
+                    });
+
+                    if (existingDraft) {
+                        // Update existing draft
+                        await prisma.booking.update({
+                            where: { id: existingDraft.id },
+                            data: {
+                                staffId: b.staffId,
+                                menuId: b.menuId,
+                                menuName: b.menuName,
+                                clientName: b.clientName,
+                                isLocked: true // LOCK IT
+                            }
+                        });
+                    } else {
+                        // Create new draft
+                        await prisma.booking.create({
+                            data: {
+                                ...b,
+                                id: undefined,
+                                status: 'SYNC_DRAFT',
+                                isLocked: true,
+                                createdAt: undefined,
+                                updatedAt: undefined,
+                                comboLinkId: b.comboLinkId ? `DRAFT-${b.comboLinkId}` : null // Unique link
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
     } else {
         // --- SINGLE UPDATE ---
         // (Convert Single -> Combo if needed)
@@ -634,12 +723,43 @@ export async function getMonthlyStaffSummary(year: number, month: number) {
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
+    // Check for Draft Mode (SYNC_META)
+    const meta = await prisma.bookingMemo.findFirst({
+        where: { date: startOfMonth, content: { startsWith: 'SYNC_META:' } }
+    });
+
+    const isDraft = !!meta;
+    let cutoff = endOfMonth;
+    if (meta) {
+        const iso = meta.content.replace('SYNC_META:', '');
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) cutoff = d;
+    }
+
+    const whereClause = isDraft ? {
+        startAt: { gte: startOfMonth, lte: endOfMonth },
+        OR: [
+            { startAt: { lt: cutoff }, status: { not: 'Cancelled' } }, // Live Past
+            { startAt: { gte: cutoff }, status: 'SYNC_DRAFT' } // Draft Future
+            // Note: Currently ImportList uses Confirmed for Past. Timeline usually uses "not Cancelled".
+            // Let's match ImportList: Past Live, Future Draft.
+        ]
+    } : {
+        startAt: { gte: startOfMonth, lte: endOfMonth },
+        status: { not: 'Cancelled' }
+    };
+
+    if (isDraft) {
+        // @ts-ignore
+        whereClause.OR[0].AND = [{ status: { not: 'SYNC_DRAFT' } }];
+    } else {
+        // @ts-ignore
+        whereClause.AND = [{ status: { not: 'SYNC_DRAFT' } }];
+    }
+
     const bookings = await prisma.booking.findMany({
-        where: {
-            startAt: { gte: startOfMonth, lte: endOfMonth },
-            status: { not: 'Cancelled' },
-            staffId: { not: null }
-        },
+        // @ts-ignore
+        where: whereClause,
         include: { service: true }
     });
 
