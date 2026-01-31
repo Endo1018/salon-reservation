@@ -11,6 +11,7 @@ export default function TimelineNav() {
         { name: 'Timeline', href: '/admin/timeline', icon: Calendar },
         { name: 'Services', href: '/admin/timeline/services', icon: Briefcase },
         { name: 'Summary', href: '/admin/timeline/summary', icon: BarChart3 },
+        { name: 'Import List', href: '/admin/import-list', icon: Calendar },
     ];
 
     return (

@@ -15,6 +15,40 @@ export default function ImportListPage() {
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
 
+    const [sortConfig, setSortConfig] = useState<{ key: 'date' | 'staff1', direction: 'asc' | 'desc' } | null>(null);
+
+    const getSortedRows = () => {
+        if (!sortConfig) return rows;
+        const sorted = [...rows];
+        sorted.sort((a, b) => {
+            if (sortConfig.key === 'date') {
+                const dateA = a.date.getTime();
+                const dateB = b.date.getTime();
+                return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+            } else if (sortConfig.key === 'staff1') {
+                const nameA = a.staff1.toLowerCase();
+                const nameB = b.staff1.toLowerCase();
+                if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+            return 0;
+        });
+        return sorted;
+    };
+
+    const handleSort = (key: 'date' | 'staff1') => {
+        setSortConfig(current => {
+            if (current?.key === key) {
+                return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+            }
+            return { key, direction: 'asc' };
+        });
+    };
+
+    const visibleRows = getSortedRows();
+
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -82,19 +116,29 @@ export default function ImportListPage() {
                 <table className="w-full text-left border-collapse text-sm">
                     <thead className="bg-slate-950 text-slate-400 sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <th className="p-3 border-b border-slate-700 min-w-[100px]">Date (A)</th>
+                            <th
+                                className="p-3 border-b border-slate-700 min-w-[100px] cursor-pointer hover:bg-slate-800 transition-colors select-none"
+                                onClick={() => handleSort('date')}
+                            >
+                                Date (A) {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
                             <th className="p-3 border-b border-slate-700 min-w-[80px]">Time (C)</th>
                             <th className="p-3 border-b border-slate-700 min-w-[150px]">Name (E)</th>
                             <th className="p-3 border-b border-slate-700 min-w-[200px]">Menu 1 (G)</th>
                             <th className="p-3 border-b border-slate-700 min-w-[60px]">Min 1 (H)</th>
                             <th className="p-3 border-b border-slate-700 min-w-[200px]">Menu 2 (I)</th>
                             <th className="p-3 border-b border-slate-700 min-w-[60px]">Min 2 (J)</th>
-                            <th className="p-3 border-b border-slate-700 min-w-[100px]">Staff 1 (K)</th>
+                            <th
+                                className="p-3 border-b border-slate-700 min-w-[100px] cursor-pointer hover:bg-slate-800 transition-colors select-none"
+                                onClick={() => handleSort('staff1')}
+                            >
+                                Staff 1 (K) {sortConfig?.key === 'staff1' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
                             <th className="p-3 border-b border-slate-700 min-w-[100px]">Staff 2 (L)</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                        {rows.map(row => (
+                        {visibleRows.map(row => (
                             <tr key={row.id} className="hover:bg-slate-800 transition-colors">
                                 <td className="p-3 text-slate-300 font-mono">
                                     {row.date.toLocaleDateString('ja-JP')}
