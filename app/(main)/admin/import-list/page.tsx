@@ -10,174 +10,41 @@ import { deleteDraft } from '@/app/actions/delete-draft';
 import { toast } from 'sonner';
 import { RefreshCcw, Check, AlertTriangle, Lock, Trash2, Edit } from 'lucide-react';
 
+import { clearFebruaryData } from '@/app/actions/debug-tools';
 import TimelineNav from '../timeline/components/TimelineNav';
 import StaffSummarySection from './components/StaffSummarySection';
 
-// Sort Config Type
-type SortConfig = {
-    key: keyof ImportLayoutRow | '';
-    direction: 'asc' | 'desc';
-};
+// ... (types) ...
 
 export default function ImportListPage() {
-    // Top-level Date State
-    const today = new Date();
-    const [year, setYear] = useState(today.getFullYear());
-    const [month, setMonth] = useState(today.getMonth() + 1);
-
-    // Data State
-    const [rows, setRows] = useState<ImportLayoutRow[]>([]);
-    const [isDraft, setIsDraft] = useState(false);
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [isPublishing, setIsPublishing] = useState(false);
-
-    // UI State
-    const [filterStaff, setFilterStaff] = useState('');
-    const [filterDate, setFilterDate] = useState('');
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'asc' });
-
-    // Edit Modal State
-    const [editingRow, setEditingRow] = useState<ImportLayoutRow | null>(null);
-    const [editForm, setEditForm] = useState({ startTime: '' });
-
-    // Load Data Effect
-    useEffect(() => {
-        loadData();
-    }, [year, month]);
+    // ... (state) ...
+    // ... (effects) ...
 
     const loadData = async () => {
-        try {
-            const data = await getImportListData(year, month);
-            // Convert strings/dates safely if needed, though Server Actions sanitize
-            setRows(data.rows);
-            setIsDraft(data.isDraft);
-        } catch (e) {
-            console.error("Failed to load import list:", e);
-            toast.error("Failed to load data.");
-        }
+        // ...
     };
 
     // Actions
     const handleSync = async () => {
-        if (confirm('Google Sheetsから同期しますか？\n(現在のドラフトは上書きされます)')) {
-            setIsSyncing(true);
-            try {
-                const result = await syncBookingsFromGoogleSheets(year, month);
-                toast.success(result.message);
+        // ...
+    };
+
+    // ... (publish, delete actions) ...
+
+    const handleClearFeb = async () => {
+        if (confirm('2026年2月の全データを強制削除しますか？\n(ドラフト・確定予約すべて削除されます)')) {
+            const res = await clearFebruaryData();
+            if (res.success) {
+                toast.success(`Deleted ${res.count} records.`);
                 await loadData();
-            } catch (e) {
-                console.error(e);
-                toast.error("Sync failed");
-            } finally {
-                setIsSyncing(false);
+            } else {
+                toast.error(`Failed: ${res.error}`);
             }
         }
     };
 
-    const handlePublish = async () => {
-        if (confirm('ドラフトを公開しますか？\n(Timelineに反映され、現在のLiveデータは置き換えられます)')) {
-            setIsPublishing(true);
-            try {
-                await publishDrafts(year, month);
-                toast.success("Published successfully!");
-                await loadData();
-            } catch (e) {
-                console.error(e);
-                toast.error("Publish failed");
-            } finally {
-                setIsPublishing(false);
-            }
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (confirm('このドラフトを削除しますか？')) {
-            try {
-                await deleteDraft(id);
-                toast.success("Deleted draft");
-                await loadData();
-            } catch (e) {
-                toast.error("Delete failed");
-            }
-        }
-    };
-
-    const openEdit = (row: ImportLayoutRow) => {
-        // extract time HH:mm from date or use dummy
-        const timeStr = row.date instanceof Date
-            ? row.date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
-            : '00:00';
-        setEditForm({ startTime: timeStr });
-        setEditingRow(row);
-    };
-
-    const handleSaveEdit = async () => {
-        if (!editingRow) return;
-        try {
-            await updateDraft(editingRow.id, {
-                startTime: editForm.startTime,
-                // Add validation or other fields?
-            });
-            toast.success("Draft updated (Reserved/Locked)");
-            setEditingRow(null);
-            await loadData();
-        } catch (e) {
-            console.error(e);
-            toast.error("Update failed");
-        }
-    };
-
-    const handleSort = (key: keyof ImportLayoutRow) => {
-        setSortConfig(current => ({
-            key,
-            direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
-
-    // Filtering & Sorting
-    const uniqueStaff = useMemo(() => {
-        const staffSet = new Set<string>();
-        rows.forEach(r => {
-            if (r.staff1) staffSet.add(r.staff1);
-            if (r.staff2) staffSet.add(r.staff2);
-        });
-        return Array.from(staffSet).sort();
-    }, [rows]);
-
-    const visibleRows = useMemo(() => {
-        let result = [...rows];
-
-        // Filter
-        if (filterStaff) {
-            result = result.filter(r => r.staff1 === filterStaff || r.staff2 === filterStaff);
-        }
-        if (filterDate) {
-            const dateStr = new Date(filterDate).toDateString();
-            result = result.filter(r => new Date(r.date).toDateString() === dateStr);
-        }
-
-        // Sort
-        if (sortConfig.key) {
-            result.sort((a, b) => {
-                const valA = a[sortConfig.key as keyof ImportLayoutRow];
-                const valB = b[sortConfig.key as keyof ImportLayoutRow];
-
-                if (valA === valB) return 0;
-
-                // Date handling
-                if (valA instanceof Date && valB instanceof Date) {
-                    return sortConfig.direction === 'asc'
-                        ? valA.getTime() - valB.getTime()
-                        : valB.getTime() - valA.getTime();
-                }
-
-                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                return sortConfig.direction === 'asc' ? 1 : -1;
-            });
-        }
-
-        return result;
-    }, [rows, filterStaff, filterDate, sortConfig]);
+    // ... (edit actions, sort actions) ...
+    // ... (filtering logic) ...
 
     return (
         <div className="flex flex-col h-full bg-slate-950 text-slate-200 overflow-hidden">
@@ -194,70 +61,7 @@ export default function ImportListPage() {
 
                     {/* Filter Bar */}
                     <div className="flex flex-wrap gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700 items-end">
-                        {/* Staff Filter */}
-                        <div className="flex flex-col">
-                            <label className="text-xs text-slate-500 mb-1">スタッフ</label>
-                            <select
-                                value={filterStaff}
-                                onChange={(e) => setFilterStaff(e.target.value)}
-                                className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white min-w-[150px]"
-                            >
-                                <option value="">全員 (All)</option>
-                                {uniqueStaff.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Month Picker */}
-                        <div className="flex flex-col">
-                            <label className="text-xs text-slate-500 mb-1">月 (Month)</label>
-                            <input
-                                type="month"
-                                value={`${year}-${month.toString().padStart(2, '0')}`}
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        const [y, m] = e.target.value.split('-').map(v => Number(v));
-                                        setYear(y);
-                                        setMonth(m);
-                                        setFilterDate(''); // Clear date filter
-                                    }
-                                }}
-                                className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white"
-                            />
-                        </div>
-
-                        {/* Date Picker */}
-                        <div className="flex flex-col">
-                            <label className="text-xs text-slate-500 mb-1">日付指定</label>
-                            <input
-                                type="date"
-                                value={filterDate}
-                                onChange={(e) => {
-                                    setFilterDate(e.target.value);
-                                    if (e.target.value) {
-                                        const d = new Date(e.target.value);
-                                        if (!isNaN(d.getTime())) {
-                                            setYear(d.getFullYear());
-                                            setMonth(d.getMonth() + 1);
-                                        }
-                                    }
-                                }}
-                                className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white"
-                            />
-                        </div>
-
-                        {/* Clear Button */}
-                        {(filterStaff || filterDate) && (
-                            <button
-                                onClick={() => { setFilterStaff(''); setFilterDate(''); }}
-                                className="mb-2 text-xs text-slate-400 hover:text-white underline"
-                            >
-                                フィルター解除
-                            </button>
-                        )}
-
-                        <div className="flex-1"></div>
+                        {/* ... Filters ... */}
 
                         {/* Sync Button */}
                         <button
@@ -269,7 +73,7 @@ export default function ImportListPage() {
                             {isSyncing ? 'Syncing...' : 'Fetch Draft'}
                         </button>
 
-                        {/* Publish Button (Only if Draft) */}
+                        {/* Publish Button */}
                         {isDraft && (
                             <button
                                 onClick={handlePublish}
@@ -282,13 +86,19 @@ export default function ImportListPage() {
                         )}
                     </div>
 
-                    {/* Draft Banner */}
-                    {isDraft && (
-                        <div className="w-full bg-amber-900/50 border border-amber-700 text-amber-200 px-4 py-2 rounded flex items-center gap-2 text-sm">
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            <span>PREVIEW MODE: You are viewing DRAFT data. This has NOT been applied to the Timeline yet. Click "Publish" to go live.</span>
-                        </div>
-                    )}
+                    {/* Draft Banner & debug tools */}
+                    <div className="flex justify-between items-center w-full gap-4">
+                        {isDraft && (
+                            <div className="flex-1 bg-amber-900/50 border border-amber-700 text-amber-200 px-4 py-2 rounded flex items-center gap-2 text-sm">
+                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                <span>PREVIEW MODE: You are viewing DRAFT data. This has NOT been applied to the Timeline yet. Click "Publish" to go live.</span>
+                            </div>
+                        )}
+                        {!isDraft && <div className="flex-1"></div>}
+                        <button onClick={handleClearFeb} className="px-3 py-1 bg-red-900/50 hover:bg-red-800 text-red-200 text-xs rounded border border-red-800 whitespace-nowrap">
+                            ⚠️ Clear Feb 2026
+                        </button>
+                    </div>
                 </header>
 
                 {/* Summary Section */}
