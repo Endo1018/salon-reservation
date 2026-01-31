@@ -15,26 +15,56 @@ export default function ImportListPage() {
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
 
+    // Filters
+    const [filterStaff, setFilterStaff] = useState('');
+    const [filterDate, setFilterDate] = useState('');
+
+    // Derived Staff List
+    const uniqueStaff = Array.from(new Set(rows.flatMap(r => [r.staff1, r.staff2]).filter(Boolean))).sort();
+
     const [sortConfig, setSortConfig] = useState<{ key: 'date' | 'staff1', direction: 'asc' | 'desc' } | null>(null);
 
-    const getSortedRows = () => {
-        if (!sortConfig) return rows;
-        const sorted = [...rows];
-        sorted.sort((a, b) => {
-            if (sortConfig.key === 'date') {
-                const dateA = a.date.getTime();
-                const dateB = b.date.getTime();
-                return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
-            } else if (sortConfig.key === 'staff1') {
-                const nameA = a.staff1.toLowerCase();
-                const nameB = b.staff1.toLowerCase();
-                if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+    const getFilteredAndSortedRows = () => {
+        let result = [...rows];
+
+        // 1. Filter
+        if (filterDate) {
+            // If specific date is selected, filter by it (ignore month scope if date is outside? No, rows are loaded by month).
+            // Actually, if user picks a date, we probably just filter the CURRENT loaded rows. 
+            // If they pick a date outside current month, they expect to see nothing or should load that month?
+            // "Attendance" page reloads data. Here we are client-side on loaded month.
+            // Let's assume Date Picker is helpful for finding a day within the loaded month.
+            // OR: If we want to support crossing months, we'd need to fetch. 
+            // For now, client-side filter within loaded month is safest for this "Import List" context.
+            const target = new Date(filterDate).toDateString();
+            result = result.filter(r => r.date.toDateString() === target);
+        }
+
+        if (filterStaff) {
+            const lower = filterStaff.toLowerCase();
+            result = result.filter(r =>
+                r.staff1.toLowerCase() === lower || r.staff2.toLowerCase() === lower
+            );
+        }
+
+        // 2. Sort
+        if (sortConfig) {
+            result.sort((a, b) => {
+                if (sortConfig.key === 'date') {
+                    const dateA = a.date.getTime();
+                    const dateB = b.date.getTime();
+                    return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+                } else if (sortConfig.key === 'staff1') {
+                    const nameA = a.staff1.toLowerCase();
+                    const nameB = b.staff1.toLowerCase();
+                    if (nameA < nameB) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (nameA > nameB) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
                 return 0;
-            }
-            return 0;
-        });
-        return sorted;
+            });
+        }
+        return result;
     };
 
     const handleSort = (key: 'date' | 'staff1') => {
@@ -46,7 +76,7 @@ export default function ImportListPage() {
         });
     };
 
-    const visibleRows = getSortedRows();
+    const visibleRows = getFilteredAndSortedRows();
 
 
     const fetchData = async () => {
@@ -88,19 +118,84 @@ export default function ImportListPage() {
 
     return (
         <div className="flex flex-col h-full bg-slate-950 text-slate-200 p-6 overflow-hidden">
-            <header className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-white mb-1">Imported Booking List</h1>
-                    <p className="text-xs text-slate-500">View of database records emulating Google Sheet structure</p>
+            <header className="flex flex-col gap-4 mb-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-white mb-1">Imported Booking List</h1>
+                        <p className="text-xs text-slate-500">View of database records emulating Google Sheet structure</p>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="flex bg-slate-900 rounded border border-slate-700">
-                        <button onClick={() => setMonth(m => m === 1 ? 12 : m - 1)} className="px-3 py-1 hover:bg-slate-800">←</button>
-                        <span className="px-4 py-1 font-mono font-bold border-x border-slate-700">{year} / {month}</span>
-                        <button onClick={() => setMonth(m => m === 12 ? 1 : m + 1)} className="px-3 py-1 hover:bg-slate-800">→</button>
+                {/* Filter Bar (Like Attendance) */}
+                <div className="flex flex-wrap gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700 items-end">
+
+                    {/* Staff Filter */}
+                    <div className="flex flex-col">
+                        <label className="text-xs text-slate-500 mb-1">スタッフ</label>
+                        <select
+                            value={filterStaff}
+                            onChange={(e) => setFilterStaff(e.target.value)}
+                            className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white min-w-[150px]"
+                        >
+                            <option value="">全員 (All)</option>
+                            {uniqueStaff.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
                     </div>
 
+                    {/* Month Picker */}
+                    <div className="flex flex-col">
+                        <label className="text-xs text-slate-500 mb-1">月 (Month)</label>
+                        <input
+                            type="month"
+                            value={`${year}-${month.toString().padStart(2, '0')}`}
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    const [y, m] = e.target.value.split('-').map(Number);
+                                    setYear(y);
+                                    setMonth(m);
+                                    setFilterDate(''); // Clear date filter when changing month
+                                }
+                            }}
+                            className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white"
+                        />
+                    </div>
+
+                    {/* Date Picker */}
+                    <div className="flex flex-col">
+                        <label className="text-xs text-slate-500 mb-1">日付指定</label>
+                        <input
+                            type="date"
+                            value={filterDate}
+                            onChange={(e) => {
+                                setFilterDate(e.target.value);
+                                // Optional: If date is picked, maybe jump to that month?
+                                if (e.target.value) {
+                                    const d = new Date(e.target.value);
+                                    if (!isNaN(d.getTime())) {
+                                        setYear(d.getFullYear());
+                                        setMonth(d.getMonth() + 1);
+                                    }
+                                }
+                            }}
+                            className="bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white"
+                        />
+                    </div>
+
+                    {/* Clear Button */}
+                    {(filterStaff || filterDate) && (
+                        <button
+                            onClick={() => { setFilterStaff(''); setFilterDate(''); }}
+                            className="mb-2 text-xs text-slate-400 hover:text-white underline"
+                        >
+                            フィルター解除
+                        </button>
+                    )}
+
+                    <div className="flex-1"></div>
+
+                    {/* Sync Button */}
                     <button
                         onClick={handleSync}
                         disabled={isSyncing}
