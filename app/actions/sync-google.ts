@@ -197,6 +197,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             where: {
                 startAt: { gte: syncStart, lt: endOfMonth },
                 status: 'SYNC_DRAFT',
+                isLocked: false // PROTECT LOCKED DRAFTS
             },
         });
 

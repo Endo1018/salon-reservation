@@ -14,6 +14,7 @@ export type ImportLayoutRow = {
     staff1: string;
     staff2: string;
     status: string; // Add status
+    isLocked: boolean; // Add lock status
 };
 
 export async function getImportListData(year: number, month: number) {
@@ -107,7 +108,8 @@ export async function getImportListData(year: number, month: number) {
                 time2: sub ? (sub.service?.duration || (sub.endAt.getTime() - sub.startAt.getTime()) / 60000) : 0,
                 staff1: main.staff?.name || '',
                 staff2: sub?.staff?.name || '',
-                status: main.status
+                status: main.status,
+                isLocked: main.isLocked || (sub?.isLocked ?? false)
             });
 
         } else {
@@ -123,7 +125,8 @@ export async function getImportListData(year: number, month: number) {
                 time2: 0,
                 staff1: booking.staff?.name || '',
                 staff2: '',
-                status: booking.status
+                status: booking.status,
+                isLocked: booking.isLocked
             });
         }
     }
