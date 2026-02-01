@@ -49,10 +49,27 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         const sheets = google.sheets({ version: 'v4', auth });
 
         // 1. Determine Target Month
-        const today = new Date();
-        const targetDate = targetDateStr ? new Date(targetDateStr) : today;
-        const month = targetDate.getMonth() + 1; // 1-12
-        const year = targetDate.getFullYear();
+        // Use Vietnam Time (UTC+7) for default "Today" to handle month roll-overs correctly
+        const nowUTC = new Date();
+        const vietnamNow = new Date(nowUTC.getTime() + (7 * 60 * 60 * 1000));
+
+        // If targetDateStr provided, use it. Else use Vietnam Now.
+        const targetDate = targetDateStr ? new Date(targetDateStr) : vietnamNow;
+
+        // Use getUTCMonth/FullYear because we manually shifted the time reference
+        // If targetDateStr is passed, it is likely YYYY-MM-DD, parsing it as UTC or Local depends on string.
+        // Assuming targetDateStr is "YYYY-MM-DD", new Date() treats it as UTC usually? No, "YYYY-MM-DD" is UTC.
+        // Let's stick to simple extraction.
+
+        let month, year;
+        if (targetDateStr) {
+            const d = new Date(targetDateStr);
+            month = d.getMonth() + 1;
+            year = d.getFullYear();
+        } else {
+            month = vietnamNow.getUTCMonth() + 1;
+            year = vietnamNow.getUTCFullYear();
+        }
 
         // Regex to match "Tháng_1_2026", "Tháng 01_2026", "01_2026", "1_2026", etc.
         // Matches: (Optional "Tháng" + space/underscore) + (1 or 01) + (space/underscore) + 2026
