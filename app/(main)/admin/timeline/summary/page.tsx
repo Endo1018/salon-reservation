@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { getMonthlyStaffSummary } from '@/app/actions/timeline';
 import { format } from 'date-fns';
 
+
+export const dynamic = 'force-dynamic';
+
 export default function SummaryPage() {
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
