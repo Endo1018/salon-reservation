@@ -12,6 +12,8 @@ type Props = {
     searchParams: { date?: string };
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function TimelineDashboard(props: Props) {
     // Await searchParams in Next.js 15+ if needed, but 14 is sync. 
     // Wait, recent Next.js versions made searchParams async.

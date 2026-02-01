@@ -12,6 +12,8 @@ import { RefreshCcw, Check, AlertTriangle, Lock, Trash2, Edit } from 'lucide-rea
 import TimelineNav from '../timeline/components/TimelineNav';
 import StaffSummarySection from './components/StaffSummarySection';
 
+export const dynamic = 'force-dynamic';
+
 // Sort Config Type
 type SortConfig = {
     key: keyof ImportLayoutRow | '';
