@@ -299,7 +299,7 @@ export async function createBooking(data: {
 
             for (const b of createdBookings) {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { id, createdAt, updatedAt, ...bookingData } = b;
+                const { id, createdAt, updatedAt, ...bookingData } = b as any;
                 await prisma.booking.create({
                     data: {
                         ...bookingData,
