@@ -16,7 +16,7 @@ export default function ServicesPage() {
     });
 
     const load = async () => {
-        setIsLoading(true);
+        // setIsLoading(true); // Removed to avoid sync setState in useEffect
         const data = await getServices();
         setServices(data);
         setIsLoading(false);

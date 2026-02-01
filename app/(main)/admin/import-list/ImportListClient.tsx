@@ -13,7 +13,7 @@ import TimelineNav from '../timeline/components/TimelineNav';
 import StaffSummarySection from './components/StaffSummarySection';
 import BookingModal from '../timeline/components/BookingModal'; // Import BookingModal
 import { deleteBooking } from '@/app/actions/timeline'; // Reuse timeline delete logic
-import { format } from 'date-fns';
+import { format } from 'date-fns'; // It's formatted as "HH:mm"
 
 
 
@@ -314,7 +314,7 @@ export default function ImportListPage() {
                         {isDraft && (
                             <div className="flex-1 bg-amber-900/50 border border-amber-700 text-amber-200 px-4 py-2 rounded flex items-center gap-2 text-sm">
                                 <AlertTriangle className="w-4 h-4 text-amber-500" />
-                                <span>PREVIEW MODE: You are viewing DRAFT data. This has NOT been applied to the Timeline yet. Click "Publish" to go live.</span>
+                                <span>PREVIEW MODE: You are viewing DRAFT data. This has NOT been applied &quot;Draft&quot; bookings are only visible to Admin. &quot;Publish&quot; to make them live.</span>
                             </div>
                         )}
                         {!isDraft && <div className="flex-1"></div>}

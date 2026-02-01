@@ -1,0 +1,103 @@
+
+> webapp@0.1.4 lint
+> eslint
+
+(node:40884) ESLintIgnoreWarning: The ".eslintignore" file is no longer supported. Switch to using the "ignores" property in "eslint.config.js": https://eslint.org/docs/latest/use/configure/migration-guide#ignoring-files
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/attendance/page.tsx
+   26:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  129:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/attendance/table.tsx
+  195:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/attendance/table.tsx:195:9
+  193 |         const netDuration = Math.max(0, rawDuration - Number(newBreakTime));
+  194 |         let calculatedHours = netDuration;
+> 195 |         setNewWorkHours(calculatedHours.toFixed(2));
+      |         ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  196 |
+  197 |         // NOTE: we do NOT update manualLate here.
+  198 |         // User sees auto-calc late value if manualLate is null  react-hooks/set-state-in-effect
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/import-list/ImportListClient.tsx
+   54:8    warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array           react-hooks/exhaustive-deps
+  200:8    warning  React Hook useMemo has an unnecessary dependency: 'dateFilterMode'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+  317:134  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                       react/no-unescaped-entities
+  317:142  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                       react/no-unescaped-entities
+  395:50   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                       react/no-unescaped-entities
+  395:62   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                       react/no-unescaped-entities
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/import-list/components/StaffSummarySection.tsx
+  18:8  warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/timeline/components/BookingModal.tsx
+  121:8  warning  React Hook useEffect has a missing dependency: 'isOpen'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/timeline/customers/CustomersClient.tsx
+  19:23  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/timeline/customers/CustomersClient.tsx:19:23
+  17 |     };
+  18 |
+> 19 |     useEffect(() => { load(); }, []);
+     |                       ^^^^ Avoid calling setState() directly within an effect
+  20 |
+  21 |     const handleDelete = async (id: string) => {
+  22 |         if (!confirm('Delete customer?')) return;  react-hooks/set-state-in-effect
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/timeline/services/ServicesClient.tsx
+  25:23  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/timeline/services/ServicesClient.tsx:25:23
+  23 |     };
+  24 |
+> 25 |     useEffect(() => { load(); }, []);
+     |                       ^^^^ Avoid calling setState() directly within an effect
+  26 |
+  27 |     const handleSeed = async () => {
+  28 |         if (!confirm('Import default services?')) return;  react-hooks/set-state-in-effect
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/(main)/admin/timeline/summary/SummaryClient.tsx
+  19:8  warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/actions/import-excel.ts
+  27:9  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/actions/staff.ts
+  45:9  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/actions/sync-google.ts
+   97:9   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  245:17  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+  251:17  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+
+/Users/takahisaendo/Desktop/勤怠/webapp/app/actions/timeline.ts
+  311:17  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+  642:25  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+
+/Users/takahisaendo/Desktop/勤怠/webapp/scripts/force_delete.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+✖ 22 problems (7 errors, 15 warnings)
+  0 errors and 10 warnings potentially fixable with the `--fix` option.
+

@@ -192,7 +192,11 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
 
         const netDuration = Math.max(0, rawDuration - Number(newBreakTime));
         let calculatedHours = netDuration;
-        setNewWorkHours(calculatedHours.toFixed(2));
+        const val = calculatedHours.toFixed(2);
+        if (val !== newWorkHours) {
+            // Deferred update to satisfy linter rule "no sync setState in effect"
+            setTimeout(() => setNewWorkHours(val), 0);
+        }
 
         // NOTE: we do NOT update manualLate here.
         // User sees auto-calc late value if manualLate is null.

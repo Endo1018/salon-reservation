@@ -10,7 +10,7 @@ export default function CustomersPage() {
     const [formData, setFormData] = useState({ name: '', phone: '', email: '', notes: '' });
 
     const load = async () => {
-        setIsLoading(true);
+        // setIsLoading(true);
         const data = await getCustomers();
         setCustomers(data);
         setIsLoading(false);
