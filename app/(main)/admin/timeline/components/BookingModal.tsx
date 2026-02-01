@@ -16,7 +16,7 @@ type Props = {
 };
 
 export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime, defaultResource, editBookingId }: Props) {
-    if (!isOpen) return null;
+    // if (!isOpen) return null; // MOVED TO BOTTOM to fix Hook Rule
 
     // Form State
     const [serviceId, setServiceId] = useState('');
@@ -91,7 +91,7 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
     // 2. Dynamic Staff Availability Fetch
     useEffect(() => {
         const fetchStaff = async () => {
-            if (!defaultDate || !startTime) return;
+            if (!isOpen || !defaultDate || !startTime) return;
 
             setFetchError(null);
             setIsFetchingStaff(true);
@@ -163,6 +163,8 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
 
     // Auto-update duration removed in favor of explicit onChange handler above
     // to prevent overwriting custom durations during Edit load.
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
