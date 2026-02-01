@@ -28,9 +28,14 @@ export default function Sidebar() {
         <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col z-50">
             {/* Brand */}
             <div className="p-6 border-b border-slate-800">
-                <h1 className="text-xl font-bold tracking-widest text-white flex items-center gap-2">
-                    <span className="text-[var(--primary)]">✦</span> ANTIGRAVITY
-                </h1>
+                <div className="flex flex-col">
+                    <h1 className="text-xl font-bold tracking-widest text-white leading-none">
+                        BIRTHREE
+                    </h1>
+                    <span className="text-[0.6rem] text-slate-500 tracking-[0.2em] font-medium mt-1">
+                        MANAGEMENT SYSTEM
+                    </span>
+                </div>
             </div>
 
             {/* Navigation */}
