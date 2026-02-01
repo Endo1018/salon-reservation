@@ -14,7 +14,8 @@ export default function Sidebar() {
         { name: 'Shifts', href: '/admin/shifts', icon: 'calendar' },
         { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
         { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
-        { name: 'Timeline', href: '/admin/timeline', icon: 'book' }, // Updated
+        { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
+        // Timeline moved to Priority Section
     ];
 
     const staffMenu = [
@@ -34,10 +35,15 @@ export default function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 py-6 px-3 space-y-6">
-                {/* Priority Menu (Timeline) */}
-                <div className="space-y-2">
-                    {[{ name: 'Timeline', href: '/admin/timeline', icon: 'book' }].map((item) => {
-                        const isActive = pathname.startsWith(item.href); // Flexible match for subpages
+                <div className="space-y-1">
+                    <div className="px-3 mb-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Booking Management</span>
+                    </div>
+                    {[
+                        { name: 'Timeline', href: '/admin/timeline', icon: 'book' },
+                        { name: 'Import List', href: '/admin/import-list', icon: 'cloud_upload' } // Changed icon to cloud_upload for Import
+                    ].map((item) => {
+                        const isActive = pathname.startsWith(item.href);
                         return (
                             <Link
                                 key={item.name}
@@ -49,7 +55,7 @@ export default function Sidebar() {
                                     }`}
                             >
                                 <span className={`material-icons-outlined text-lg ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
-                                    📖
+                                    {item.icon === 'book' ? '📖' : '📥'}
                                 </span>
                                 {item.name}
                             </Link>

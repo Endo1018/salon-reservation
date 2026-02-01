@@ -9,40 +9,14 @@ import { getDraftStatus } from '@/app/actions/timeline';
 export default function TimelineNav() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const [hasDraft, setHasDraft] = useState(false);
-
-    useEffect(() => {
-        const checkDraft = async () => {
-            let year = new Date().getFullYear();
-            let month = new Date().getMonth() + 1;
-
-            const dateParam = searchParams.get('date');
-            if (dateParam) {
-                const d = new Date(dateParam);
-                if (!isNaN(d.getTime())) {
-                    year = d.getFullYear();
-                    month = d.getMonth() + 1;
-                }
-            } else {
-                // Default to current month if no param
-                // Could be improved to check context, but good enough for badge
-            }
-
-            try {
-                const status = await getDraftStatus(year, month);
-                setHasDraft(status);
-            } catch (e) {
-                console.error(e);
-            }
-        };
-        checkDraft();
-    }, [searchParams, pathname]);
+    // Draft check logic removed as Import List tab is moved to Sidebar.
+    // If we want a badge on Timeline tab, we can keep it, but user asked to clean up.
+    // Assuming badge logic was specifically for that tab so removing unused code.
 
     const tabs = [
         { name: 'Timeline', href: '/admin/timeline', icon: Calendar },
         { name: 'Services', href: '/admin/timeline/services', icon: Briefcase },
         { name: 'Summary', href: '/admin/timeline/summary', icon: BarChart3 },
-        { name: 'Import List', href: '/admin/import-list', icon: Calendar },
     ];
 
     return (
