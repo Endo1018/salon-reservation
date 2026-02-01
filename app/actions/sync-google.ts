@@ -76,7 +76,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         // Note: Vietnamese 'á' might be involved but usually "Thang" or "Tháng".
         const monthRegex = new RegExp(`^(?:Th[aá]ng[ _]?)?0?${month}[_ ]${year}$`, 'i');
 
-        console.log(`[Sync] Looking for sheet matching: Month ${month}, Year ${year}`);
+        console.log(`[Sync] Looking for sheet matching: Month ${month}, Year ${year} (Deployment Trigger V3)`);
 
         // 2. Fetch Metadata to find exact sheet name
         let sheetName = '';
