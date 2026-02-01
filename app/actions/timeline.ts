@@ -58,21 +58,31 @@ export async function getAvailableStaff(dateStr: string, startTime: string, dura
 
     const busyStaffIds = new Set(conflictingBookings.map(b => b.staffId));
 
-    const available = therapists.filter(t => {
+    // Previously filtered strictly. Now we return ALL, but marked with status.
+    const allTherapists = therapists.map(t => {
         const shift = shifts.find(s => s.staffId === t.id);
         const rawStatus = shift?.status;
         const statusUpper = rawStatus?.toUpperCase();
+        let suffix = '';
 
-        if (rawStatus === '-' || !rawStatus) return true;
+        if (!rawStatus || rawStatus === '-') {
+            // suffix = ' (?)'; // Maybe implies no shift
+        } else {
+            const isOff = statusUpper === 'OFF' || statusUpper === 'AL' || statusUpper === 'HOLIDAY' || statusUpper === 'ABSENT';
+            if (isOff) suffix = ` (${rawStatus})`;
+        }
 
-        const isOff = statusUpper === 'OFF' || statusUpper === 'AL' || statusUpper === 'HOLIDAY' || statusUpper === 'ABSENT';
-        if (isOff) return false;
+        if (busyStaffIds.has(t.id)) {
+            suffix += ' (Busy)';
+        }
 
-        if (busyStaffIds.has(t.id)) return false;
-
-        return true;
+        return {
+            id: t.id,
+            name: t.name + suffix
+        };
     });
-    return available;
+
+    return allTherapists;
 }
 
 export async function getActiveTherapists() {
