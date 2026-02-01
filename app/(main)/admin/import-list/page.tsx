@@ -163,19 +163,23 @@ export default function ImportListPage() {
         }
 
         // Date Filter
-        if (dateFilterMode === 'SPECIFIC' && specificDate) {
+        // Date Filter
+        if (specificDate) {
             filtered = filtered.filter(row => {
                 const d = new Date(row.date);
-                // Compare YYYY-MM-DD
-                // Need to match specificDate string
-                // Row date is Date obj.
-                // specificDate is "2026-01-01"?
-                // Let's match roughly
-                const dateStr = d.toISOString().split('T')[0];
-                // But timezone...
-                // Better: check if booking falls on that day local time.
-                // Simplified: Match exact YMD if possible.
-                // Or just string compare for now assuming UTC alignment in layout.
+                // Compare YYYY-MM-DD (UTC to Local assumed or simple string match)
+                // row.date is ISO string from DB (UTC). specificDate is YYYY-MM-DD (Local).
+                // Let's use simple string match on the T part if row.date is YYYY-MM-DD...
+                // Actually row.date is Date object or string?
+                // row.date comes from `getImportListData`.
+                // It's likely ISO string.
+                // We want to match the "Day" in the current view context.
+                const rowDate = new Date(row.date);
+                // Adjustment: User sees +7h (VN) in table?
+                // Step 1144 line 127: const hh = d.getUTCHours() + 7;
+                // If the table displays VN time, we should filter by VN date.
+                const vnDate = new Date(rowDate.getTime() + 7 * 60 * 60 * 1000);
+                const dateStr = vnDate.toISOString().split('T')[0];
                 return dateStr === specificDate;
             });
         }
@@ -251,27 +255,33 @@ export default function ImportListPage() {
                             </select>
                         </div>
 
+                        {/* Month Filter */}
+                        <div>
+                            <label className="text-xs text-slate-500 mb-1 block">月 (Month)</label>
+                            <select
+                                value={`${year}-${String(month).padStart(2, '0')}`}
+                                onChange={e => {
+                                    const [y, m] = e.target.value.split('-').map(Number);
+                                    setYear(y);
+                                    setMonth(m);
+                                }}
+                                className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm"
+                            >
+                                <option value="2026-01">2026年01月</option>
+                                <option value="2026-02">2026年02月</option>
+                                <option value="2026-03">2026年03月</option>
+                            </select>
+                        </div>
+
                         {/* Date Filter */}
                         <div>
                             <label className="text-xs text-slate-500 mb-1 block">日付指定</label>
-                            <div className="flex gap-2">
-                                <select
-                                    value={dateFilterMode}
-                                    onChange={e => setDateFilterMode(e.target.value as any)}
-                                    className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm"
-                                >
-                                    <option value="ALL">月 (Month)</option>
-                                    <option value="SPECIFIC">日 (Day)</option>
-                                </select>
-                                {dateFilterMode === 'SPECIFIC' && (
-                                    <input
-                                        type="date"
-                                        value={specificDate}
-                                        onChange={e => setSpecificDate(e.target.value)}
-                                        className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm"
-                                    />
-                                )}
-                            </div>
+                            <input
+                                type="date"
+                                value={specificDate}
+                                onChange={e => setSpecificDate(e.target.value)}
+                                className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm"
+                            />
                         </div>
 
                         <div className="flex-1"></div>
