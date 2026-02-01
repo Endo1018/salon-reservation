@@ -18,6 +18,9 @@ export default function RootLayout({
       <body className="antialiased h-full">
         {children}
         <Toaster richColors position="top-right" />
+        <footer className="fixed bottom-0 right-0 p-1 bg-black/80 text-white text-[10px] z-[100] pointer-events-none opacity-50">
+          Build: {new Date().toISOString().split('T')[1].split('.')[0]} (Ver 0.1.5-CHECK)
+        </footer>
       </body>
     </html>
   );
