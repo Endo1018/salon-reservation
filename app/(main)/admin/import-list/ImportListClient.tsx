@@ -392,7 +392,7 @@ export default function ImportListPage() {
                     </table>
                     {rows.length === 0 && (
                         <div className="p-10 text-center text-slate-500">
-                            No data found. Click "Fetch Draft" to import from Google Sheets.
+                            No data found. Click &quot;Fetch Draft&quot; to import from Google Sheets.
                         </div>
                     )}
                 </div>

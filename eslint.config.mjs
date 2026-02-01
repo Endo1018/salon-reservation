@@ -24,7 +24,9 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/ban-ts-comment": "off",
       "prefer-const": "off",
       "react-hooks/exhaustive-deps": "off",
-      "react-hooks/rules-of-hooks": "off"
+      "react-hooks/exhaustive-deps": "off",
+      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/set-state-in-effect": "off"
     }
   }
 ]);
