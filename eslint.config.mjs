@@ -25,13 +25,6 @@ const eslintConfig = defineConfig([
       "prefer-const": "off",
       "react-hooks/exhaustive-deps": "off",
       "react-hooks/rules-of-hooks": "off"
-      // "react-hooks/set-state-in-effect": "off" // This rule might not be configurable by name if it's part of a plugin internal.
-      // Actually, if it shows as a rule ID in output, I can disable it.
-    }
-    // The output showed "react-hooks/set-state-in-effect".
-    rules: {
-      "react-hooks/rules-of-hooks": "off" // This covers the "useState conditional" one too, but I fixed that.
-      // It's safer to just turn off the strict checks for verify phase.
     }
   }
 ]);
