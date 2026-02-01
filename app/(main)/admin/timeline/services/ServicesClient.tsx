@@ -8,7 +8,8 @@ export default function ServicesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formData, setFormData] = useState({
-        name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0
+        name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0,
+        type: 'Single', massageDuration: 0, headSpaDuration: 0
     });
 
     const load = async () => {
@@ -36,7 +37,10 @@ export default function ServicesPage() {
         e.preventDefault();
         await createService({ ...formData, allowedStaff: [] });
         setIsFormOpen(false);
-        setFormData({ name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0 });
+        setFormData({
+            name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0,
+            type: 'Single', massageDuration: 0, headSpaDuration: 0
+        });
         load();
     };
 
@@ -108,10 +112,29 @@ export default function ServicesPage() {
                         <h2 className="text-lg font-bold">New Service</h2>
                         <input className="w-full bg-slate-800 border-slate-700 rounded p-2" placeholder="Name" required
                             value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+
                         <div className="flex gap-2">
-                            <input type="number" className="w-1/2 bg-slate-800 border-slate-700 rounded p-2" placeholder="Duration (min)" required
-                                value={formData.duration} onChange={e => setFormData({ ...formData, duration: parseInt(e.target.value) })} />
                             <select className="w-1/2 bg-slate-800 border-slate-700 rounded p-2"
+                                value={formData.type || 'Single'}
+                                onChange={e => setFormData({ ...formData, type: e.target.value })}>
+                                <option value="Single">Single</option>
+                                <option value="Combo">Combo</option>
+                            </select>
+                            <input type="number" className="w-1/2 bg-slate-800 border-slate-700 rounded p-2" placeholder="Total Duration (min)" required
+                                value={formData.duration} onChange={e => setFormData({ ...formData, duration: parseInt(e.target.value) })} />
+                        </div>
+
+                        {formData.type === 'Combo' && (
+                            <div className="flex gap-2 bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                                <input type="number" className="w-1/2 bg-slate-800 border-slate-700 rounded p-2 text-sm" placeholder="Massage (min)"
+                                    value={formData.massageDuration || 0} onChange={e => setFormData({ ...formData, massageDuration: parseInt(e.target.value) })} />
+                                <input type="number" className="w-1/2 bg-slate-800 border-slate-700 rounded p-2 text-sm" placeholder="Head Spa (min)"
+                                    value={formData.headSpaDuration || 0} onChange={e => setFormData({ ...formData, headSpaDuration: parseInt(e.target.value) })} />
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <select className="w-full bg-slate-800 border-slate-700 rounded p-2"
                                 value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                                 <option>Massage</option>
                                 <option>Head Spa</option>

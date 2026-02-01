@@ -43,11 +43,14 @@ export async function createService(data: {
     category: string;
     commission: number;
     allowedStaff: string[];
+    type?: string;
+    massageDuration?: number;
+    headSpaDuration?: number;
 }) {
     await prisma.service.create({
         data: {
             ...data,
-            type: 'Single' // Default
+            type: data.type || 'Single'
         }
     });
     revalidatePath('/admin/booking/services');
@@ -59,6 +62,9 @@ export async function updateService(id: string, data: {
     price?: number;
     category?: string;
     commission?: number;
+    type?: string;
+    massageDuration?: number;
+    headSpaDuration?: number;
 }) {
     await prisma.service.update({
         where: { id },
