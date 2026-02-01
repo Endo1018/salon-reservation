@@ -30,7 +30,6 @@ export async function isResourceFree(
             startAt: { lt: end },
             endAt: { gt: start },
             id: excludeBookingId ? { not: excludeBookingId } : undefined,
-            id: excludeBookingId ? { not: excludeBookingId } : undefined,
             status: { notIn: ['Cancelled', 'SYNC_DRAFT'] }
         }
     });
@@ -54,7 +53,6 @@ export async function findFreeResource(
             resourceId: { in: pool },
             startAt: { lt: end },
             endAt: { gt: start },
-            id: excludeBookingId ? { not: excludeBookingId } : undefined,
             id: excludeBookingId ? { not: excludeBookingId } : undefined,
             status: { notIn: ['Cancelled', 'SYNC_DRAFT'] }
         },

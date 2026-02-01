@@ -181,10 +181,11 @@ export default function ImportListPage() {
         }
 
         // Sort
-        if (sortConfig.key) {
+        if (sortConfig.key && sortConfig.key !== '') {
             filtered.sort((a, b) => {
-                const aVal = a[sortConfig.key];
-                const bVal = b[sortConfig.key];
+                const key = sortConfig.key as keyof ImportLayoutRow; // Assert
+                const aVal = a[key];
+                const bVal = b[key];
                 if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
