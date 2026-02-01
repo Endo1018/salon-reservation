@@ -7,7 +7,7 @@ import RecalcButton from './RecalcButton';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AttendanceManagementPage({
+export default async function AttendancePage({
     searchParams,
 }: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

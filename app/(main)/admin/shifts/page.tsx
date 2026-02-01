@@ -8,11 +8,9 @@ import CopyShiftButton from './CopyShiftButton';
 
 export const dynamic = 'force-dynamic';
 
-type Props = {
+export default async function ShiftsPage(props: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}
-
-export default async function ShiftManagementPage(props: Props) {
+}) {
     const searchParams = await props.searchParams;
     const queryMonth = typeof searchParams.month === 'string' ? searchParams.month : null;
 

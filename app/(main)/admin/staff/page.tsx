@@ -4,11 +4,9 @@ import StaffList from './StaffList';
 
 export const dynamic = 'force-dynamic';
 
-type Props = {
+export default async function StaffPage(props: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}
-
-export default async function StaffManagement(props: Props) {
+}) {
     const searchParams = await props.searchParams;
     const status = searchParams.status;
     const allStaff = await prisma.staff.findMany({

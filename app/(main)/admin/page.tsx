@@ -5,7 +5,7 @@ import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminDashboard({
+export default async function AdminPage({
     searchParams,
 }: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
