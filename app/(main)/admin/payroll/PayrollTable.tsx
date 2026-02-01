@@ -500,7 +500,7 @@ function AdjustmentModal({ staffId, staff, year, month, initialData, onClose }: 
                         <Lock className="w-3 h-3" /> Finalize
                     </button>
                     <div className="w-px bg-slate-700 mx-2"></div>
-                    <button onClick={handleExportExcel} className="px-4 py-2 text-slate-400 hover:text-white text-sm">キャンセル</button>
+                    <button onClick={() => setEditingStaffId(null)} className="px-4 py-2 text-slate-400 hover:text-white text-sm">キャンセル</button>
                     <button
                         onClick={handleSave}
                         disabled={isSaving}

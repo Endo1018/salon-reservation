@@ -291,16 +291,15 @@ export async function createBooking(data: {
             const draftComboId = isCombo ? `DRAFT-${crypto.randomUUID()}` : null;
 
             for (const b of createdBookings) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { id, createdAt, updatedAt, ...bookingData } = b;
                 await prisma.booking.create({
                     data: {
-                        ...b,
-                        id: undefined, // Let DB generate new ID
+                        ...bookingData,
                         status: 'SYNC_DRAFT',
                         // @ts-ignore
-                        isLocked: true, // Lock it so it persists syncs
-                        comboLinkId: draftComboId, // Use new draft link ID if combo
-                        createdAt: undefined,
-                        updatedAt: undefined
+                        isLocked: true,
+                        comboLinkId: draftComboId
                     }
                 });
             }
