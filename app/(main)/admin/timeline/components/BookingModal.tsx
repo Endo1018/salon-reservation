@@ -161,18 +161,8 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
         }
     };
 
-    // Auto-update duration (Only on Create?)
-    useEffect(() => {
-        if (!editBookingId) {
-            const s = services.find(x => x.id === serviceId);
-            if (s) {
-                setDuration(s.duration);
-                // Reset isAroma when service changes
-                setIsAroma(false);
-                setIsHeadSpaFirst(false);
-            }
-        }
-    }, [serviceId, services, editBookingId]);
+    // Auto-update duration removed in favor of explicit onChange handler above
+    // to prevent overwriting custom durations during Edit load.
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
@@ -204,8 +194,18 @@ export default function BookingModal({ isOpen, onClose, defaultDate, defaultTime
                             <select
                                 className="w-full bg-slate-800 border-slate-700 rounded p-2"
                                 required
-                                value={serviceId} onChange={e => setServiceId(e.target.value)}
-                            // Enabled for editing now
+                                value={serviceId}
+                                onChange={e => {
+                                    const newId = e.target.value;
+                                    setServiceId(newId);
+                                    // Auto-update params based on service
+                                    const s = services.find(x => x.id === newId);
+                                    if (s) {
+                                        setDuration(s.duration);
+                                        setIsAroma(false);
+                                        setIsHeadSpaFirst(false);
+                                    }
+                                }}
                             >
                                 <option value="">Select Service...</option>
                                 {services.map(s => (
