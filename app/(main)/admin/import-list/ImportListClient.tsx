@@ -327,7 +327,7 @@ export default function ImportListPage() {
                 </header>
 
                 {/* Summary Section */}
-                <StaffSummarySection year={year} month={month} />
+                <StaffSummarySection year={year} month={month} staffFilter={staffFilter} />
 
                 <div className="flex-1 overflow-auto border border-slate-800 rounded bg-slate-900">
                     <table className="w-full text-left border-collapse text-sm">

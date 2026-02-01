@@ -6,9 +6,10 @@ import { getMonthlyStaffSummary } from '@/app/actions/timeline';
 interface Props {
     year: number;
     month: number;
+    staffFilter?: string;
 }
 
-export default function StaffSummarySection({ year, month }: Props) {
+export default function StaffSummarySection({ year, month, staffFilter }: Props) {
     const [summary, setSummary] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -28,6 +29,11 @@ export default function StaffSummarySection({ year, month }: Props) {
         }
     };
 
+    const filteredSummary = summary.filter(s => {
+        if (!staffFilter || staffFilter === 'ALL') return true;
+        return s.name === staffFilter;
+    });
+
     if (isLoading) return <div className="py-8 text-center text-slate-500 animate-pulse">Loading Summary...</div>;
 
     return (
@@ -46,7 +52,7 @@ export default function StaffSummarySection({ year, month }: Props) {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                    {summary.map(s => (
+                    {filteredSummary.map(s => (
                         <tr key={s.id} className="hover:bg-slate-800/50 transition-colors">
                             <td className="p-3 font-bold text-white">{s.name}</td>
                             <td className="p-3 text-right font-mono text-slate-400">{s.bookingCount}</td>
