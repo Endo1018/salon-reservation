@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { getServices, createService, deleteService, seedInitialServices, updateService } from '@/app/actions/booking-master';
+import { Pencil, Trash2, RotateCcw, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ServicesPage() {
     const [services, setServices] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0,
         type: 'Single', massageDuration: 0, headSpaDuration: 0
@@ -39,15 +42,42 @@ export default function ServicesPage() {
         }
     };
 
+    const handleEdit = (svc: any) => {
+        setEditingId(svc.id);
+        setFormData({
+            name: svc.name,
+            duration: svc.duration,
+            price: svc.price,
+            category: svc.category,
+            commission: svc.commission,
+            type: svc.type || 'Single',
+            massageDuration: svc.massageDuration || 0,
+            headSpaDuration: svc.headSpaDuration || 0
+        });
+        setIsFormOpen(true);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await createService({ ...formData, allowedStaff: [] });
-        setIsFormOpen(false);
-        setFormData({
-            name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0,
-            type: 'Single', massageDuration: 0, headSpaDuration: 0
-        });
-        load();
+        try {
+            if (editingId) {
+                await updateService(editingId, { ...formData, allowedStaff: [] }); // Update ignores allowedStaff in simple update
+                toast.success('Service updated');
+            } else {
+                await createService({ ...formData, allowedStaff: [] });
+                toast.success('Service created');
+            }
+            setIsFormOpen(false);
+            setEditingId(null);
+            setFormData({
+                name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0,
+                type: 'Single', massageDuration: 0, headSpaDuration: 0
+            });
+            load();
+        } catch (e) {
+            toast.error('Failed to save service');
+            console.error(e);
+        }
     };
 
     const handleUpdateCommission = async (id: string, val: string) => {
@@ -60,11 +90,23 @@ export default function ServicesPage() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Services</h1>
                 <div className="flex gap-2">
-                    <button onClick={handleSeed} className="px-4 py-2 bg-slate-700 rounded hover:bg-slate-600 text-sm">
+                    <button onClick={handleSeed} className="flex items-center gap-2 px-4 py-2 bg-slate-700 rounded hover:bg-slate-600 text-sm transition-colors">
+                        <RotateCcw className="w-4 h-4" />
                         Initialize Defaults
                     </button>
-                    <button onClick={() => setIsFormOpen(true)} className="px-4 py-2 bg-[var(--primary)] text-slate-900 font-bold rounded hover:opacity-90">
-                        + Add Service
+                    <button
+                        onClick={() => {
+                            setEditingId(null);
+                            setFormData({
+                                name: '', duration: 60, price: 0, category: 'Massage Seat', commission: 0,
+                                type: 'Single', massageDuration: 0, headSpaDuration: 0
+                            });
+                            setIsFormOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-slate-900 font-bold rounded hover:opacity-90 transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Add Service
                     </button>
                 </div>
             </div>
@@ -104,7 +146,20 @@ export default function ServicesPage() {
                                         />
                                     </td>
                                     <td className="px-4 py-3">
-                                        <button onClick={() => handleDelete(svc.id)} className="text-red-400 hover:text-red-300 font-bold text-lg px-2">×</button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleEdit(svc)}
+                                                className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(svc.id)}
+                                                className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -115,7 +170,9 @@ export default function ServicesPage() {
             {isFormOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
                     <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-700 p-6 rounded-lg w-96 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-lg font-bold border-b border-slate-800 pb-2">New Service</h2>
+                        <h2 className="text-lg font-bold border-b border-slate-800 pb-2">
+                            {editingId ? 'Edit Service' : 'New Service'}
+                        </h2>
 
                         <div>
                             <label className="text-xs text-slate-500 block mb-1">Service Name</label>
