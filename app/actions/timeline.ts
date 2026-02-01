@@ -132,7 +132,14 @@ export async function getTimelineData(dateStr: string) {
         status: b.status
     }));
 
-    return { resources, bookings: formattedBookings };
+    const draftMeta = await prisma.bookingMemo.findFirst({
+        where: {
+            date: startOfDay,
+            content: { startsWith: 'SYNC_META:' }
+        }
+    });
+
+    return { resources, bookings: formattedBookings, isDraft: !!draftMeta };
 }
 
 // --- WRITE ACTIONS ---
@@ -621,15 +628,15 @@ export async function updateBooking(id: string, data: {
                         });
                     } else {
                         // Create new draft
+                        // Create new draft
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, createdAt, updatedAt, ...bookingData } = b as any;
                         await prisma.booking.create({
                             data: {
-                                ...b,
-                                id: undefined,
+                                ...bookingData,
                                 status: 'SYNC_DRAFT',
                                 // @ts-ignore
                                 isLocked: true,
-                                createdAt: undefined,
-                                updatedAt: undefined,
                                 comboLinkId: b.comboLinkId ? `DRAFT-${b.comboLinkId}` : null // Unique link
                             }
                         });

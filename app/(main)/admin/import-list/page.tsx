@@ -181,7 +181,7 @@ export default function ImportListPage() {
         }
 
         // Sort
-        if (sortConfig.key && sortConfig.key !== '') {
+        if (sortConfig.key && String(sortConfig.key) !== '') {
             filtered.sort((a, b) => {
                 const key = sortConfig.key as keyof ImportLayoutRow; // Assert
                 const aVal = a[key];
