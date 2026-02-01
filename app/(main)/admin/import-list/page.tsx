@@ -325,21 +325,21 @@ export default function ImportListPage() {
                                     className="p-3 border-b border-slate-700 min-w-[100px] cursor-pointer hover:bg-slate-800 transition-colors select-none"
                                     onClick={() => handleSort('date')}
                                 >
-                                    Date (A) {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
-                                <th className="p-3 border-b border-slate-700 min-w-[80px]">Time (C)</th>
-                                <th className="p-3 border-b border-slate-700 min-w-[150px]">Name (E)</th>
-                                <th className="p-3 border-b border-slate-700 min-w-[200px]">Menu 1 (G)</th>
-                                <th className="p-3 border-b border-slate-700 min-w-[60px]">Min 1 (H)</th>
-                                <th className="p-3 border-b border-slate-700 min-w-[200px]">Menu 2 (I)</th>
-                                <th className="p-3 border-b border-slate-700 min-w-[60px]">Min 2 (J)</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[80px]">Time</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[150px]">Name</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[200px]">Menu 1</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[60px]">Min 1</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[200px]">Menu 2</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[60px]">Min 2</th>
                                 <th
                                     className="p-3 border-b border-slate-700 min-w-[100px] cursor-pointer hover:bg-slate-800 transition-colors select-none"
                                     onClick={() => handleSort('staff1')}
                                 >
-                                    Staff 1 (K) {sortConfig?.key === 'staff1' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    Staff 1 {sortConfig?.key === 'staff1' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
-                                <th className="p-3 border-b border-slate-700 min-w-[100px]">Staff 2 (L)</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[100px]">Staff 2</th>
                                 <th className="p-3 border-b border-slate-700 w-24">Actions</th>
                             </tr>
                         </thead>
