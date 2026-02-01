@@ -22,7 +22,7 @@ export default function Sidebar() {
         { name: 'My Dashboard', href: '#', icon: 'user' }, // Dynamic link handling is complex here, keeping simple for UI demo
     ];
 
-    const menu = isAdmin ? adminMenu : staffMenu;
+    // const menu = isAdmin ? adminMenu : staffMenu; // Unused
 
     return (
         <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col z-50">
@@ -80,7 +80,7 @@ export default function Sidebar() {
                         { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
                         { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
                     ] : staffMenu).map((item) => {
-                        const isActive = pathname === item.href && item.href !== '/admin/timeline'; // Strict match for others, exclude timeline if logic overlaps
+                        // const isActive = pathname === item.href && item.href !== '/admin/timeline'; // Removed unused
                         // Actually, Dashboard is /admin, so exact match prevents highlighting on subpages usually.
                         // But original code used ===. I'll stick to === for general items.
                         // except Dashboard /admin might match /admin/timeline if startsWith used.
