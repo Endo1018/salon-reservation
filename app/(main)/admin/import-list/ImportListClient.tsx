@@ -11,6 +11,9 @@ import { toast } from 'sonner';
 import { RefreshCcw, Check, AlertTriangle, Lock, Trash2, Edit } from 'lucide-react';
 import TimelineNav from '../timeline/components/TimelineNav';
 import StaffSummarySection from './components/StaffSummarySection';
+import BookingModal from '../timeline/components/BookingModal'; // Import BookingModal
+import { deleteBooking } from '@/app/actions/timeline'; // Reuse timeline delete logic
+import { format } from 'date-fns';
 
 
 
@@ -41,9 +44,10 @@ export default function ImportListPage() {
     const [specificDate, setSpecificDate] = useState(''); // YYYY-MM-DD
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'asc' });
 
-    // Editing State
-    const [editingRow, setEditingRow] = useState<ImportLayoutRow | null>(null);
-    const [editForm, setEditForm] = useState({ startTime: '' }); // Simplified edit form
+    // Editing State (using BookingModal)
+    const [editBookingId, setEditBookingId] = useState<string | null>(null);
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [modalDefaults, setModalDefaults] = useState({ date: '', time: '', resource: '' });
 
     useEffect(() => {
         loadData();
@@ -94,13 +98,14 @@ export default function ImportListPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('このドラフト予約を削除しますか？')) return;
-        const res = await deleteDraft(id);
-        if (res.success) {
+        if (!confirm('この予約を削除しますか？\n(本番データも削除されます)')) return;
+        try {
+            await deleteBooking(id); // Use timeline delete action
             toast.success('Deleted');
             loadData();
-        } else {
-            toast.error(res.message);
+        } catch (e) {
+            toast.error('Deletion failed');
+            console.error(e);
         }
     };
 
@@ -118,32 +123,25 @@ export default function ImportListPage() {
 
     // Edit Logic
     const openEdit = (row: ImportLayoutRow) => {
-        // Parse time from Time String or Date?
-        // Row has time string or explicit.
-        // Let's use Date object
+        // Prepare defaults (though modal loads most from DB)
         const d = new Date(row.date);
-        // Correct to display local time (VN/JP)
-        // row.date is UTC from server (startAt).
-        // Let's assume we just want HH:mm
-        // row.date is Date object.
-        const hh = d.getUTCHours() + 7; // VN
-        const mm = d.getUTCMinutes();
-        const timeStr = `${String(hh % 24).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+        // Correct to Local for display if needed, but BookingModal expects YYYY-MM-DD
+        // Assuming row.date is usable.
+        // Actually BookingModal expects "YYYY-MM-DD" string.
+        // row.date is Date object in Client?
+        // getImportListData returns Date object.
+        // Local Timezone adjustment:
+        const vnTime = new Date(d.getTime() + 7 * 60 * 60 * 1000); // Shift for display
+        const dateStr = vnTime.toISOString().split('T')[0];
+        const timeStr = vnTime.toISOString().split('T')[1].substr(0, 5);
 
-        setEditingRow(row);
-        setEditForm({ startTime: timeStr });
-    };
-
-    const handleSaveEdit = async () => {
-        if (!editingRow) return;
-        const res = await updateDraft(editingRow.id, { startTime: editForm.startTime });
-        if (res.success) {
-            toast.success('Updated');
-            setEditingRow(null);
-            loadData();
-        } else {
-            toast.error(res.message);
-        }
+        setEditBookingId(row.id);
+        setModalDefaults({
+            date: dateStr,
+            time: timeStr,
+            resource: 'seat-1' // Dummy, edit mode loads actual
+        });
+        setIsBookingModalOpen(true);
     };
 
     const handleSort = (key: keyof ImportLayoutRow) => {
@@ -372,22 +370,20 @@ export default function ImportListPage() {
                                     <td className="p-3 text-yellow-500 font-bold">{row.staff1}</td>
                                     <td className="p-3 text-yellow-500 font-bold opacity-80">{row.staff2}</td>
                                     <td className="p-3 flex gap-2">
-                                        {isDraft && (
-                                            <>
-                                                <button
-                                                    onClick={() => openEdit(row)}
-                                                    className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-white"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(row.id)}
-                                                    className="p-1 hover:bg-slate-700 rounded text-red-400 hover:text-red-300"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </>
-                                        )}
+                                        <button
+                                            onClick={() => openEdit(row)}
+                                            className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-white"
+                                            title="Edit"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(row.id)}
+                                            className="p-1 hover:bg-slate-700 rounded text-red-400 hover:text-red-300"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                         {row.isLocked && <Lock className="w-4 h-4 text-amber-500" />}
                                     </td>
                                 </tr>
@@ -401,41 +397,18 @@ export default function ImportListPage() {
                     )}
                 </div>
 
-                {/* Edit Modal */}
-                {editingRow && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-96 shadow-2xl">
-                            <h2 className="text-xl font-bold text-white mb-4">Edit Draft</h2>
-
-                            <div className="mb-4">
-                                <label className="text-sm text-slate-400 block mb-1">Time (C)</label>
-                                <input
-                                    type="time"
-                                    value={editForm.startTime}
-                                    onChange={e => setEditForm({ ...editForm, startTime: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white"
-                                />
-                            </div>
-
-                            {/* Note: Staff Edit not fully implemented due to missing ID list, keeping Time for now */}
-
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
-                                    onClick={() => setEditingRow(null)}
-                                    className="px-4 py-2 text-slate-400 hover:text-white"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveEdit}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold"
-                                >
-                                    Save & Lock
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {/* Booking Modal (Full Edit) */}
+                <BookingModal
+                    isOpen={isBookingModalOpen}
+                    onClose={() => {
+                        setIsBookingModalOpen(false);
+                        loadData(); // Reload after close to catch updates
+                    }}
+                    defaultDate={modalDefaults.date}
+                    defaultTime={modalDefaults.time}
+                    defaultResource={modalDefaults.resource}
+                    editBookingId={editBookingId}
+                />
             </div>
         </div>
     );
