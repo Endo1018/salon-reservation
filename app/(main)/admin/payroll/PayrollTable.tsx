@@ -495,12 +495,8 @@ function AdjustmentModal({ staffId, staff, year, month, initialData, onClose }: 
                     />
                 </div>
 
-                <div className="flex gap-2 mt-6">
-                    <button onClick={handleFinalize} className="p-2 px-4 bg-red-900/50 hover:bg-red-800 border border-red-700 rounded text-red-100 text-sm transition-colors flex items-center gap-2">
-                        <Lock className="w-3 h-3" /> Finalize
-                    </button>
-                    <div className="w-px bg-slate-700 mx-2"></div>
-                    <button onClick={() => setEditingStaffId(null)} className="px-4 py-2 text-slate-400 hover:text-white text-sm">キャンセル</button>
+                <div className="flex gap-2 mt-6 justify-end">
+                    <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-sm">キャンセル</button>
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
