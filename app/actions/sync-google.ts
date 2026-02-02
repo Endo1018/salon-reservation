@@ -150,12 +150,13 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         const serviceMap = new Map<string, Service>(serviceList.map((s) => [s.name.trim().toLowerCase(), s]));
 
         // 4. Calculate Sync Scope (Protect Past Data)
-        const startOfMonth = new Date(year, month - 1, 1);
-        const endOfMonth = new Date(year, month, 1); // Next month 1st is upper bound
+        // Correctly align startOfMonth to 00:00 Vietnam Time (UTC-7)
+        // new Date(year, month-1, 1) creates 00:00 UTC (07:00 VN). We want 00:00 VN (-07:00 UTC).
+        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0 - 7, 0, 0));
+        const endOfMonth = new Date(Date.UTC(year, month, 1, 0 - 7, 0, 0)); // Next month 1st is upper bound (aligned)
 
         // We only want to sync data from "Yesterday" onwards to preserve manual fixes in the past.
         const now = new Date();
-        // Convert to Vietnam Time (GMT+7) to determine "Yesterday" relative to store operations
         const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7 (Approximate for day calc)
 
         // "Yesterday" at 00:00:00
@@ -163,20 +164,9 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         yesterday.setDate(yesterday.getDate() - 1);
         yesterday.setUTCHours(0 - 7, 0, 0, 0); // Back to UTC, aligned to VN 00:00
 
-        // The actual start of sync range is the later of:
-        // 1. The start of the target month (don't sync previous months if we are targeting Jan)
-        // 2. Yesterday (don't sync/overwrite bookings from 3 days ago)
-        // However, if the user explicitly requests a month that is entirely in the past (e.g. last year),
-        // we might NOT want to sync it at all if we follow "Yesterday" rule strictly.
-        // BUT, usually Sync Button is on the Timeline view.
-
-        // Let's protect: Max(StartOfMonth, Yesterday)
-        // If Target Month is future, StartOfMonth > Yesterday -> Full Month Sync.
-        // If Target Month is current, Yesterday > StartOfMonth -> Partial Sync (Yesterday+).
-        // If Target Month is past, EndOfMonth < Yesterday -> Nothing to sync (Correct, we shouldn't touch past months).
-
         const syncStart = (yesterday > startOfMonth) ? yesterday : startOfMonth;
-        // const syncStart = startOfMonth; // FORCE FULL SYNC (Admin Override)
+
+        console.log(`[Sync] Scope: ${syncStart.toISOString()} to ${endOfMonth.toISOString()} (V4 Fix)`);
 
         console.log(`[Sync] Scope: ${syncStart.toISOString()} to ${endOfMonth.toISOString()}`);
 
@@ -220,6 +210,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
         let successCount = 0;
         let errorCount = 0;
+        const missingServices: string[] = [];
 
         // Resource Usage (Scoped for this sync run)
         const resourceUsage = new Map<string, { start: number; end: number }[]>();
@@ -484,6 +475,9 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 } else {
                     console.log(`[Sync] Skipped Row (Service Not Found): "${svcName1}" | Client: ${clientName} | Date: ${dateStr}`);
                     errorCount++;
+                    if (svcName1 && !missingServices.includes(svcName1)) {
+                        missingServices.push(svcName1);
+                    }
                 }
 
             } catch (e) {
@@ -582,7 +576,15 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         }
 
         revalidatePath('/admin/timeline');
-        return { success: true, message: `Sync Complete: ${successCount} Imported, ${errorCount} Errors. Memos: ${memoCount}${memoError ? ` (Error: ${memoError})` : ''}` };
+
+        let msg = `Sync Complete: ${successCount} Imported, ${errorCount} Errors.`;
+        if (missingServices.length > 0) {
+            msg += ` Missing Services: ${missingServices.slice(0, 3).join(', ')}${missingServices.length > 3 ? '...' : ''}`;
+        }
+        if (memoCount > 0) msg += ` Memos: ${memoCount}`;
+        if (memoError) msg += ` (Memo Err: ${memoError})`;
+
+        return { success: true, message: msg };
 
     } catch (e: any) {
         console.error(e);
