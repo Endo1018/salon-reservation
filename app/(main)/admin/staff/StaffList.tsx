@@ -97,11 +97,19 @@ export default function StaffList({ staffList }: { staffList: Staff[] }) {
                                         </div>
                                     </td>
                                     <td className="p-4">
-                                        {staff.isActive ? (
-                                            <span className="text-green-400 text-xs font-bold">ACTIVE</span>
-                                        ) : (
-                                            <span className="text-red-400 text-xs font-bold">RETIRED</span>
-                                        )}
+                                        {(() => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const hasEnded = staff.endDate && new Date(staff.endDate) < today;
+
+                                            if (hasEnded) {
+                                                return <span className="text-orange-400 text-xs font-bold">ENDED</span>;
+                                            } else if (!staff.isActive) {
+                                                return <span className="text-red-400 text-xs font-bold">RETIRED</span>;
+                                            } else {
+                                                return <span className="text-green-400 text-xs font-bold">ACTIVE</span>;
+                                            }
+                                        })()}
                                         {staff.endDate && (
                                             <div className="text-xs text-orange-400 mt-1">
                                                 退職: {new Date(staff.endDate).toLocaleDateString('ja-JP')}
