@@ -299,8 +299,8 @@ export default function ImportListPage() {
                             {isSyncing ? 'Syncing...' : 'Fetch Draft'}
                         </button>
 
-                        {/* Publish Button */}
-                        {isDraft && (
+                        {/* Publish Button - Show when there are SYNC_DRAFT rows */}
+                        {rows.some(r => r.status === 'SYNC_DRAFT') && (
                             <button
                                 onClick={handlePublish}
                                 disabled={isPublishing || isSyncing}
@@ -314,13 +314,13 @@ export default function ImportListPage() {
 
                     {/* Draft Banner & debug tools */}
                     <div className="flex justify-between items-center w-full gap-4">
-                        {isDraft && (
+                        {rows.some(r => r.status === 'SYNC_DRAFT') && (
                             <div className="flex-1 bg-amber-900/50 border border-amber-700 text-amber-200 px-4 py-2 rounded flex items-center gap-2 text-sm">
                                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                                 <span>PREVIEW MODE: You are viewing DRAFT data. This has NOT been applied &quot;Draft&quot; bookings are only visible to Admin. &quot;Publish&quot; to make them live.</span>
                             </div>
                         )}
-                        {!isDraft && <div className="flex-1"></div>}
+                        {!rows.some(r => r.status === 'SYNC_DRAFT') && <div className="flex-1"></div>}
                         <button onClick={handleClearFeb} className="px-3 py-1 bg-red-900/50 hover:bg-red-800 text-red-200 text-xs rounded border border-red-800 whitespace-nowrap">
                             ⚠️ Clear Feb 2026
                         </button>
