@@ -39,7 +39,7 @@ export default function Sidebar() {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 py-6 px-3 space-y-6">
+            <nav className="flex-1 py-6 px-3 space-y-6 overflow-y-auto">
                 <div className="space-y-1">
                     <div className="px-3 mb-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Booking Management</span>
