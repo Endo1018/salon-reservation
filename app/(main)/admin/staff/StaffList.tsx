@@ -20,6 +20,7 @@ type Staff = {
     allowanceLanguage?: number;
     allowanceOther?: number;
     isActive: boolean;
+    endDate?: Date | string | null; // Staff departure date
 };
 
 export default function StaffList({ staffList }: { staffList: Staff[] }) {
@@ -101,6 +102,11 @@ export default function StaffList({ staffList }: { staffList: Staff[] }) {
                                         ) : (
                                             <span className="text-red-400 text-xs font-bold">RETIRED</span>
                                         )}
+                                        {staff.endDate && (
+                                            <div className="text-xs text-orange-400 mt-1">
+                                                退職: {new Date(staff.endDate).toLocaleDateString('ja-JP')}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="p-4">
                                         <div className="flex flex-col gap-2 items-start">
@@ -160,6 +166,7 @@ function InputRow({ staff, onCancel }: { staff: Staff, onCancel: () => void }) {
         allowanceHousing: String(staff.allowanceHousing || 0),
         allowanceLanguage: String(staff.allowanceLanguage || 0),
         allowanceOther: String(staff.allowanceOther || 0),
+        endDate: staff.endDate ? new Date(staff.endDate).toISOString().split('T')[0] : '', // YYYY-MM-DD
     });
     const [isSaving, startTransition] = useTransition();
 
@@ -182,6 +189,7 @@ function InputRow({ staff, onCancel }: { staff: Staff, onCancel: () => void }) {
         data.append('allowanceHousing', formData.allowanceHousing || "0");
         data.append('allowanceLanguage', formData.allowanceLanguage || "0");
         data.append('allowanceOther', formData.allowanceOther || "0");
+        data.append('endDate', formData.endDate || ''); // Empty string = clear
 
         startTransition(async () => {
             await updateStaff(data);
@@ -325,8 +333,25 @@ function InputRow({ staff, onCancel }: { staff: Staff, onCancel: () => void }) {
                     </div>
                 </div>
             </td>
-            <td className="p-4 text-center">
-                -
+            <td className="p-4">
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-slate-400">退職日:</span>
+                    <input
+                        type="date"
+                        value={formData.endDate}
+                        onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                        className="bg-slate-900 border border-slate-600 rounded p-1 text-xs text-white"
+                    />
+                    {formData.endDate && (
+                        <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, endDate: '' })}
+                            className="text-[10px] text-red-400 underline"
+                        >
+                            クリア
+                        </button>
+                    )}
+                </div>
             </td>
             <td className="p-4">
                 <div className="flex flex-col gap-2">

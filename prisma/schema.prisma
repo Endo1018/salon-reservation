@@ -16,6 +16,7 @@ model Staff {
   commissionRate         Int                 @default(0)
   incentiveRate          Int                 @default(0)
   isActive               Boolean             @default(true)
+  endDate                DateTime?           // Staff departure date (null = still active)
   dependents             Int                 @default(0)
   allowanceCommute       Int                 @default(0)
   allowanceMeal          Int                 @default(0)

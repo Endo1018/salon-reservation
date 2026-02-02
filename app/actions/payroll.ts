@@ -122,8 +122,17 @@ export async function confirmMonthlyPayroll(year: number, month: number) {
         data: { isConfirmed: true }
     });
 
-    // Ensure all active staff have a confirmed adjustment record
-    const activeStaff = await prisma.staff.findMany({ where: { isActive: true } });
+    // Include staff who were active during this month (endDate is null or >= 1st of month)
+    const monthStart = new Date(year, month - 1, 1); // month is 1-indexed
+    const activeStaff = await prisma.staff.findMany({
+        where: {
+            isActive: true,
+            OR: [
+                { endDate: null },
+                { endDate: { gte: monthStart } }
+            ]
+        }
+    });
     for (const staff of activeStaff) {
         await prisma.payrollAdjustment.upsert({
             where: {

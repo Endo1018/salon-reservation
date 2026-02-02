@@ -78,6 +78,10 @@ export async function updateStaff(formData: FormData) {
     // Use originalId for lookup if provided (renaming case), otherwise use id
     const targetId = originalId || id;
 
+    // Parse endDate
+    const endDateStr = formData.get('endDate') as string;
+    const endDate = endDateStr ? new Date(endDateStr) : null;
+
     await prisma.staff.update({
         where: { id: targetId },
         data: {
@@ -96,6 +100,7 @@ export async function updateStaff(formData: FormData) {
             allowanceHousing: Number(formData.get('allowanceHousing') || 0),
             allowanceLanguage: Number(formData.get('allowanceLanguage') || 0),
             allowanceOther: Number(formData.get('allowanceOther') || 0),
+            endDate: endDate, // Nullable Date
         },
     });
 

@@ -28,9 +28,17 @@ export type TimelineBooking = {
 export async function getAvailableStaff(dateStr: string, startTime: string, duration: number) {
     const startAt = new Date(`${dateStr}T${startTime}:00`);
     const endAt = new Date(startAt.getTime() + duration * 60000);
+    const targetDate = new Date(`${dateStr}T00:00:00`);
 
     const therapists = await prisma.staff.findMany({
-        where: { isActive: true, role: 'THERAPIST' },
+        where: {
+            isActive: true,
+            role: 'THERAPIST',
+            OR: [
+                { endDate: null }, // Still active
+                { endDate: { gte: targetDate } } // End date is on or after the target date
+            ]
+        },
         select: { id: true, name: true }
     });
 

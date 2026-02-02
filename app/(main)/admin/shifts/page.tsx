@@ -34,15 +34,23 @@ export default async function ShiftsPage(props: {
     const nextMonthStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
     const currentDisplay = new Date(year, month).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
+    // Define date range for this month (used for both staff filter and shifts query)
+    const startDate = new Date(year, month, 1);
+    const nextMonthStart = new Date(year, month + 1, 1);
+
+    // Filter staff: include if no endDate OR endDate is on or after the 1st of this month
     const allStaff = await prisma.staff.findMany({
-        where: { isActive: true },
+        where: {
+            isActive: true,
+            OR: [
+                { endDate: null },
+                { endDate: { gte: startDate } }
+            ]
+        },
         orderBy: { id: 'asc' },
     });
 
     // Fetch shifts for this month
-    // Fetch shifts for this month
-    const startDate = new Date(year, month, 1);
-    const nextMonthStart = new Date(year, month + 1, 1);
 
     const shifts = await prisma.shift.findMany({
         where: {
