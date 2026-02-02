@@ -23,12 +23,13 @@ export async function getImportListData(year: number, month: number) {
     const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0 - 7, 0, 0));
     const endOfMonth = new Date(Date.UTC(year, month, 1, 0 - 7, 0, 0));
 
-    // Metadata is always stored at strict UTC 00:00 on the 1st (by sync-google.ts)
-    const metaDate = new Date(Date.UTC(year, month - 1, 1));
-
-    // Check for Draft Mode
+    // Check for Draft Mode (Relaxed Lookup: Anywhere in month scope)
     const meta = await prisma.bookingMemo.findFirst({
-        where: { date: metaDate, content: { startsWith: 'SYNC_META:' } }
+        where: {
+            date: { gte: startOfMonth, lt: endOfMonth },
+            content: { startsWith: 'SYNC_META:' }
+        },
+        orderBy: { date: 'desc' }
     });
 
     const isDraft = !!meta;
