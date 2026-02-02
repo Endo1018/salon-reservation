@@ -18,7 +18,13 @@ export default async function AdminPage({
     const month = sp.month ? parseInt(String(sp.month)) : now.getMonth() + 1; // 1-12
 
     const allStaff = await prisma.staff.findMany({
-        where: { isActive: true },
+        where: {
+            isActive: true,
+            OR: [
+                { endDate: null },
+                { endDate: { gte: startOfMonth } }
+            ]
+        },
         orderBy: { id: 'asc' }
     });
 
