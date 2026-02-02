@@ -18,8 +18,10 @@ export type ImportLayoutRow = {
 };
 
 export async function getImportListData(year: number, month: number) {
-    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
-    const endOfMonth = new Date(Date.UTC(year, month, 1));
+    // Correctly align to Vietnam Time (UTC+7) 00:00
+    // VN 00:00 on 1st = Previous Day 17:00 UTC
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0 - 7, 0, 0));
+    const endOfMonth = new Date(Date.UTC(year, month, 1, 0 - 7, 0, 0));
 
     // Check for Draft Mode
     const meta = await prisma.bookingMemo.findFirst({
