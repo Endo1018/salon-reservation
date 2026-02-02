@@ -179,25 +179,33 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         // We store the syncStart date so the "Publish" action knows where to start replacing data.
         // Stored as a special BookingMemo on the 1st of the month.
         const metaDate = new Date(Date.UTC(year, month - 1, 1)); // 1st
+        console.log(`[Sync] Saving metadata for date: ${metaDate.toISOString()}`);
 
-        // Remove old meta
-        await prisma.bookingMemo.deleteMany({
-            where: {
-                date: metaDate,
-                content: { startsWith: 'SYNC_META:' }
-            }
-        });
+        try {
+            // Remove old meta
+            const deleted = await prisma.bookingMemo.deleteMany({
+                where: {
+                    date: metaDate,
+                    content: { startsWith: 'SYNC_META:' }
+                }
+            });
+            console.log(`[Sync] Deleted ${deleted.count} old meta records.`);
 
-        // Create new meta
-        await prisma.bookingMemo.create({
-            data: {
-                date: metaDate,
-                time: '00:00',
-                persons: 0,
-                content: `SYNC_META:${syncStart.toISOString()}`,
-                hasCome: false
-            }
-        });
+            // Create new meta
+            const newMeta = await prisma.bookingMemo.create({
+                data: {
+                    date: metaDate,
+                    time: '00:00',
+                    persons: 0,
+                    content: `SYNC_META:${syncStart.toISOString()}`,
+                    hasCome: false
+                }
+            });
+            console.log(`[Sync] Created new meta: ID=${newMeta.id}, Content=${newMeta.content}`);
+        } catch (metaError: any) {
+            console.error(`[Sync] ERROR creating metadata: ${metaError.message}`);
+            // Continue with sync even if meta fails - for debugging
+        }
 
         // Clear Existing DRAFTS (Only within scope)
         // We do NOT delete Confirmed bookings yet.
