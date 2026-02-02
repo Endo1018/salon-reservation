@@ -37,6 +37,7 @@ export default function ImportListPage() {
     // UI State
     const [isSyncing, setIsSyncing] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [debugInfo, setDebugInfo] = useState('');
 
     // Filtering & Sorting
     const [staffFilter, setStaffFilter] = useState('ALL');
@@ -59,6 +60,8 @@ export default function ImportListPage() {
             const data = await getImportListData(year, month);
             setRows(data.rows);
             setIsDraft(data.isDraft);
+            // @ts-ignore
+            setDebugInfo(data.debug || '');
         } catch (e) {
             console.error(e);
             toast.error('Failed to load data');
@@ -391,8 +394,10 @@ export default function ImportListPage() {
                         </tbody>
                     </table>
                     {rows.length === 0 && (
-                        <div className="p-10 text-center text-slate-500">
-                            No data found. Click &quot;Fetch Draft&quot; to import from Google Sheets.
+                        <div className="flex flex-col items-center justify-center p-12 text-slate-500 border border-slate-800 rounded-lg bg-slate-900/50">
+                            <p className="mb-2">No data found. Click "Fetch Draft" to import from Google Sheets.</p>
+                            {/* @ts-ignore */}
+                            {rows.length === 0 && <p className="text-xs font-mono text-slate-600 mt-4">{debugInfo}</p>}
                         </div>
                     )}
                 </div>

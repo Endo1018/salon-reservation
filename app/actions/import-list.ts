@@ -139,6 +139,7 @@ export async function getImportListData(year: number, month: number) {
     // Sort by Date then Time
     return {
         rows: rows.sort((a, b) => a.date.getTime() - b.date.getTime()),
-        isDraft
+        isDraft,
+        debug: `Meta=${!!meta}, Cutoff=${cutoff.toISOString()}, Range=[${startOfMonth.toISOString()} - ${endOfMonth.toISOString()}], RawCount=${bookings.length}`
     };
 }
