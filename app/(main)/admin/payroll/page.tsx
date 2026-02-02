@@ -16,7 +16,13 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
     const endDate = new Date(year, month, 0); // Last day of current month
 
     const staffList = await prisma.staff.findMany({
-        where: { isActive: true },
+        where: {
+            isActive: true,
+            OR: [
+                { endDate: null },
+                { endDate: { gte: startDate } } // Include if ended on or after 1st of month
+            ]
+        },
         orderBy: { id: 'asc' }
     });
 

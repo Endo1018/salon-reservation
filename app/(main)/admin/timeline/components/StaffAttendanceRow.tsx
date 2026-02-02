@@ -18,8 +18,17 @@ export default async function StaffAttendanceRow({ date }: Props) {
         include: { staff: true }
     });
 
+    const targetDate = new Date(`${date}T00:00:00`);
+
     const staff = await prisma.staff.findMany({
-        where: { isActive: true, role: 'THERAPIST' },
+        where: {
+            isActive: true,
+            role: 'THERAPIST',
+            OR: [
+                { endDate: null },
+                { endDate: { gte: targetDate } } // Include if ended on or after this date
+            ]
+        },
         include: {
             shifts: {
                 where: {
