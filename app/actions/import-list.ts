@@ -49,44 +49,16 @@ export async function getImportListData(year: number, month: number) {
         }
     }
 
-    // Build Query
-    // We want:
-    // 1. Confirmed BEFORE cutoff
-    // 2. Drafts AFTER cutoff (actually status=SYNC_DRAFT check is safer)
-
-    // Actually, prisma OR is easiest:
-    // OR: [
-    //   { startAt: { lt: cutoff }, status: 'Confirmed' }, -- Live Pasts
-    //   { startAt: { gte: cutoff }, status: 'SYNC_DRAFT' } -- Draft Futures
-    // ]
-    // But wait, what about Unchanged Futures? The Sync deletes Confirmed in scope?
-    // The previous STEP (sync) only deleted `SYNC_DRAFT`. It did NOT delete `Confirmed`.
-    // So we have BOTH `Confirmed` and `Draft` in the future.
-    // We want to HIDE the `Confirmed` futures in this list if we are in Draft Mode.
-
-    const whereClause = isDraft ? {
-        startAt: { gte: startOfMonth, lt: endOfMonth },
-        OR: [
-            { startAt: { lt: cutoff }, status: { in: ['Confirmed', 'SYNC_DRAFT'] } }, // Include drafts if any weirdly in past? No, just Confirmed.
-            { startAt: { gte: cutoff }, status: 'SYNC_DRAFT' } // Only show drafts for future
-        ]
-    } : {
-        startAt: { gte: startOfMonth, lt: endOfMonth },
-        status: { not: 'Cancelled' }, // Standard Live View
-        // Note: If we have leftover drafts but no Meta? Should ignore drafts.
-        // So add: status: { not: 'SYNC_DRAFT' } if !isDraft
-    };
-
-    if (!isDraft) {
-        // @ts-ignore
-        whereClause.status = { in: ['Confirmed', 'Confirmed'] }; // Simplify: Just not Cancelled/Draft
-        // @ts-ignore
-        whereClause.AND = [{ status: { not: 'Cancelled' } }, { status: { not: 'SYNC_DRAFT' } }];
-    }
-
+    // Build Query - SIMPLIFIED: Always show SYNC_DRAFT in the month scope
+    // This bypasses the metadata lookup issue for debugging
     const bookings = await prisma.booking.findMany({
-        // @ts-ignore
-        where: whereClause,
+        where: {
+            startAt: { gte: startOfMonth, lt: endOfMonth },
+            OR: [
+                { status: 'SYNC_DRAFT' },
+                { status: 'Confirmed' }
+            ]
+        },
         include: { staff: true, service: true },
         orderBy: { startAt: 'asc' }
     });
