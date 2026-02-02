@@ -135,6 +135,13 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                         <span className="text-slate-400">/</span>
                         <span>{month.toString().padStart(2, '0')}</span>
                     </h2>
+                    {/* Prev/Next buttons moved here */}
+                    <button onClick={() => handleMonthChange(-1)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors text-sm">
+                        ← 前月
+                    </button>
+                    <button onClick={() => handleMonthChange(1)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors text-sm">
+                        翌月 →
+                    </button>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={handleFinalize} className="p-2 px-4 bg-red-900/50 hover:bg-red-800 border border-red-700 rounded text-red-100 text-sm transition-colors flex items-center gap-2">
@@ -143,13 +150,6 @@ export default function PayrollTable({ staffList, attendance, shifts, adjustment
                     <div className="w-px bg-slate-700 mx-2"></div>
                     <button onClick={handleExportExcel} className="p-2 px-4 bg-green-700 hover:bg-green-600 rounded text-white text-sm transition-colors flex items-center gap-2">
                         Export XLSX
-                    </button>
-                    <div className="w-px bg-slate-700 mx-2"></div>
-                    <button onClick={() => handleMonthChange(-1)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors">
-                        &larr; Prev
-                    </button>
-                    <button onClick={() => handleMonthChange(1)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors">
-                        Next &rarr;
                     </button>
                 </div>
             </div>
