@@ -23,22 +23,30 @@ export async function getImportListData(year: number, month: number) {
     const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0 - 7, 0, 0));
     const endOfMonth = new Date(Date.UTC(year, month, 1, 0 - 7, 0, 0));
 
-    // Check for Draft Mode (Relaxed Lookup: Anywhere in month scope)
-    const meta = await prisma.bookingMemo.findFirst({
-        where: {
-            date: { gte: startOfMonth, lt: endOfMonth },
-            content: { startsWith: 'SYNC_META:' }
-        },
-        orderBy: { date: 'desc' }
+    // Check for Draft Mode (Robust Lookup)
+    // Fetch ALL sync metas and find the one for this month in JS to avoid Timezone DB mismatch
+    const allMetas = await prisma.bookingMemo.findMany({
+        where: { content: { startsWith: 'SYNC_META:' } }
+    });
+
+    const meta = allMetas.find(m => {
+        const d = new Date(m.date);
+        // Match Year/Month (UTC)
+        return d.getUTCFullYear() === year && (d.getUTCMonth() + 1) === month;
     });
 
     const isDraft = !!meta;
     let cutoff = endOfMonth; // Default: If no draft, everything is live (cutoff at end)
 
     if (meta) {
-        const iso = meta.content.replace('SYNC_META:', '');
-        const d = new Date(iso);
-        if (!isNaN(d.getTime())) cutoff = d;
+        // Parse cutoff from content
+        try {
+            const iso = meta.content.replace('SYNC_META:', '');
+            const d = new Date(iso);
+            if (!isNaN(d.getTime())) cutoff = d;
+        } catch (e) {
+            console.error("Error parsing meta date", e);
+        }
     }
 
     // Build Query
@@ -141,6 +149,6 @@ export async function getImportListData(year: number, month: number) {
     return {
         rows: rows.sort((a, b) => a.date.getTime() - b.date.getTime()),
         isDraft,
-        debug: `Meta=${!!meta}, Cutoff=${cutoff.toISOString()}, Range=[${startOfMonth.toISOString()} - ${endOfMonth.toISOString()}], RawCount=${bookings.length}`
+        debug: `Meta=${!!meta}, GlobalMeta=${allMetas.length}, Cutoff=${cutoff.toISOString()}, Range=[${startOfMonth.toISOString()} - ${endOfMonth.toISOString()}], RawCount=${bookings.length}`
     };
 }
