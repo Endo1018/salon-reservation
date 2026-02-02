@@ -245,357 +245,354 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         // 5. Process Rows
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            // 5. Process Rows
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0]) {
-                    skippedEmptyCount++;
+            if (!row[0]) {
+                skippedEmptyCount++;
+                continue;
+            }
+
+            try {
+                const dateStr = row[0] as string; // A
+                const timeStr = row[2] as string; // C
+                const clientName = row[4] as string; // E
+
+                // Svc 1
+                const svcName1 = (row[6] as string)?.trim();
+                const dur1 = parseInt(row[7] as string) || 60;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const staffName1 = (row[10] as string)?.trim();
+
+                // Svc 2
+                const svcName2 = (row[8] as string)?.trim();
+                const dur2 = parseInt(row[9] as string) || 0;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const staffName2 = (row[11] as string)?.trim();
+
+                // Date Parse (DD/MM/YYYY)
+                const [dd, mm, yyyy] = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
+
+                // Time Parse
+                const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+
+                if (!timeMatch || !dd || !mm || !yyyy) {
+                    console.log(`[Sync] Skipped Row (Invalid Date/Time): ${dateStr} ${timeStr}`);
                     continue;
                 }
 
-                try {
-                    const dateStr = row[0] as string; // A
-                    const timeStr = row[2] as string; // C
-                    const clientName = row[4] as string; // E
+                let hours = parseInt(timeMatch[1]);
+                let mins = parseInt(timeMatch[2]);
+                const ampm = timeMatch[3]?.toUpperCase();
+                if (ampm === 'PM' && hours < 12) hours += 12;
+                if (ampm === 'AM' && hours === 12) hours = 0;
 
-                    // Svc 1
-                    const svcName1 = (row[6] as string)?.trim();
-                    const dur1 = parseInt(row[7] as string) || 60;
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const staffName1 = (row[10] as string)?.trim();
+                // Timezone Correction: Vietnam (GMT+7) -> UTC
+                const startAt = new Date(Date.UTC(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), hours - 7, mins));
 
-                    // Svc 2
-                    const svcName2 = (row[8] as string)?.trim();
-                    const dur2 = parseInt(row[9] as string) || 0;
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const staffName2 = (row[11] as string)?.trim();
+                // Simple date check
+                if (startAt < syncStart || startAt >= endOfMonth) {
+                    // console.log(`[Sync] Skipped Row (Date Out of Range): ${startAt.toISOString()} vs [${syncStart.toISOString()} - ${endOfMonth.toISOString()}]`);
+                    continue;
+                }
 
-                    // Date Parse (DD/MM/YYYY)
-                    const [dd, mm, yyyy] = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
-
-                    // Time Parse
-                    const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-
-                    if (!timeMatch || !dd || !mm || !yyyy) {
-                        console.log(`[Sync] Skipped Row (Invalid Date/Time): ${dateStr} ${timeStr}`);
-                        continue;
+                // Match Service 1
+                let svcKey1 = svcName1?.toLowerCase();
+                if (svcKey1 && nameCorrections[svcKey1]) svcKey1 = nameCorrections[svcKey1];
+                let service1: Service | undefined = serviceMap.get(svcKey1 || '');
+                if (!service1 && svcName1) {
+                    for (const [k, v] of serviceMap.entries()) {
+                        if (k.includes(svcName1.toLowerCase()) || svcName1.toLowerCase().includes(k)) {
+                            service1 = v;
+                            break;
+                        }
                     }
+                }
 
-                    let hours = parseInt(timeMatch[1]);
-                    let mins = parseInt(timeMatch[2]);
-                    const ampm = timeMatch[3]?.toUpperCase();
-                    if (ampm === 'PM' && hours < 12) hours += 12;
-                    if (ampm === 'AM' && hours === 12) hours = 0;
-
-                    // Timezone Correction: Vietnam (GMT+7) -> UTC
-                    const startAt = new Date(Date.UTC(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), hours - 7, mins));
-
-                    // Simple date check
-                    if (startAt < syncStart || startAt >= endOfMonth) {
-                        // console.log(`[Sync] Skipped Row (Date Out of Range): ${startAt.toISOString()} vs [${syncStart.toISOString()} - ${endOfMonth.toISOString()}]`);
-                        continue;
-                    }
-
-                    // Match Service 1
-                    let svcKey1 = svcName1?.toLowerCase();
-                    if (svcKey1 && nameCorrections[svcKey1]) svcKey1 = nameCorrections[svcKey1];
-                    let service1: Service | undefined = serviceMap.get(svcKey1 || '');
-                    if (!service1 && svcName1) {
+                // Match Service 2
+                let service2: Service | undefined = undefined;
+                if (svcName2) {
+                    let svcKey2 = svcName2.toLowerCase();
+                    if (nameCorrections[svcKey2]) svcKey2 = nameCorrections[svcKey2];
+                    service2 = serviceMap.get(svcKey2);
+                    if (!service2) {
                         for (const [k, v] of serviceMap.entries()) {
-                            if (k.includes(svcName1.toLowerCase()) || svcName1.toLowerCase().includes(k)) {
-                                service1 = v;
+                            if (k.includes(svcName2.toLowerCase()) || svcName2.toLowerCase().includes(k)) {
+                                service2 = v;
                                 break;
                             }
                         }
                     }
+                }
 
-                    // Match Service 2
-                    let service2: Service | undefined = undefined;
-                    if (svcName2) {
-                        let svcKey2 = svcName2.toLowerCase();
-                        if (nameCorrections[svcKey2]) svcKey2 = nameCorrections[svcKey2];
-                        service2 = serviceMap.get(svcKey2);
-                        if (!service2) {
-                            for (const [k, v] of serviceMap.entries()) {
-                                if (k.includes(svcName2.toLowerCase()) || svcName2.toLowerCase().includes(k)) {
-                                    service2 = v;
-                                    break;
-                                }
-                            }
+                // Match Staff
+                let staff1: Staff | undefined = staffMap.get((row[10] as string)?.trim()?.toLowerCase() || '');
+                if (!staff1 && row[10]) {
+                    const s1n = (row[10] as string).toLowerCase();
+                    for (const [k, v] of staffMap.entries()) {
+                        if (k.includes(s1n)) {
+                            staff1 = v;
+                            break;
+                        }
+                    }
+                }
+                // Fallback to Other if empty
+                if (!staff1 && !(row[10] as string)?.trim()) {
+                    staff1 = staffMap.get('other');
+                }
+
+                let staff2: Staff | undefined = staffMap.get((row[11] as string)?.trim()?.toLowerCase() || '');
+                if (!staff2 && row[11]) {
+                    const s2n = (row[11] as string).toLowerCase();
+                    for (const [k, v] of staffMap.entries()) {
+                        if (k.includes(s2n)) {
+                            staff2 = v;
+                            break;
+                        }
+                    }
+                }
+                // Fallback to Other if empty
+                if (!staff2 && !(row[11] as string)?.trim()) {
+                    staff2 = staffMap.get('other');
+                }
+
+                // Booking Logic
+                if (service1) {
+                    const isCombo = !!service2;
+                    const comboLinkId = isCombo ? crypto.randomUUID() : null;
+
+                    const getPool = (svc: Service) => {
+                        const nameLower = svc.name.toLowerCase();
+                        if (nameLower.includes('couple') && nameLower.includes('course')) return { pool: resourcePools.aroma, type: 'aroma' }; // Default 1st part to Aroma
+                        if (svc.category === 'Aroma' || nameLower.includes('aroma')) return { pool: resourcePools.aroma, type: 'aroma' };
+                        if (svc.category === 'Head Spa' || nameLower.includes('head spa')) return { pool: resourcePools.spa, type: 'spa' };
+                        return { pool: resourcePools.seat, type: 'seat' };
+                    };
+
+                    const pool1Info = getPool(service1);
+                    let pool2Info = isCombo && service2 ? getPool(service2) : null;
+
+                    // Special Rule: Couple Course 2nd part is always Head Spa
+                    if (isCombo && service1.name.toLowerCase().includes('couple') && service2?.name.toLowerCase().includes('couple')) {
+                        pool2Info = { pool: resourcePools.spa, type: 'spa' };
+                    }
+                    let useSwappedOrder = false;
+                    let resId1: string | null = null;
+                    let resId2: string | null = null;
+
+                    // Logic 1: Normal
+                    const endAt1_Normal = new Date(startAt.getTime() + dur1 * 60000);
+                    let targetPool2 = pool2Info ? pool2Info.pool : [];
+                    let targetType2 = pool2Info ? pool2Info.type : 'seat';
+
+                    if (isCombo && service1 && service2) {
+                        const name1Lower = service1.name.toLowerCase();
+                        if (name1Lower.includes('first time') || name1Lower.includes('champaca') || name1Lower.includes('advance') || name1Lower.includes('deluxe') || name1Lower.includes('special offer') || name1Lower.includes('v.i.p') || name1Lower.includes('vip')) {
+                            console.log(`[Sync] Forced Spa for 2nd part: ${service1.name}`);
+                            targetPool2 = resourcePools.spa;
+                            targetType2 = 'spa';
                         }
                     }
 
-                    // Match Staff
-                    let staff1: Staff | undefined = staffMap.get((row[10] as string)?.trim()?.toLowerCase() || '');
-                    if (!staff1 && row[10]) {
-                        const s1n = (row[10] as string).toLowerCase();
-                        for (const [k, v] of staffMap.entries()) {
-                            if (k.includes(s1n)) {
-                                staff1 = v;
-                                break;
-                            }
-                        }
-                    }
-                    // Fallback to Other if empty
-                    if (!staff1 && !(row[10] as string)?.trim()) {
-                        staff1 = staffMap.get('other');
+                    const res1_Normal = findFree(pool1Info.pool, startAt, endAt1_Normal);
+                    let res2_Normal: string | null = null;
+                    let endAt2_Normal: Date | null = null;
+
+                    if (isCombo) {
+                        endAt2_Normal = new Date(endAt1_Normal.getTime() + (dur2 || 30) * 60000);
+                        res2_Normal = findFree(targetPool2, endAt1_Normal, endAt2_Normal);
                     }
 
-                    let staff2: Staff | undefined = staffMap.get((row[11] as string)?.trim()?.toLowerCase() || '');
-                    if (!staff2 && row[11]) {
-                        const s2n = (row[11] as string).toLowerCase();
-                        for (const [k, v] of staffMap.entries()) {
-                            if (k.includes(s2n)) {
-                                staff2 = v;
-                                break;
-                            }
+                    // Logic 2: Swap
+                    if (isCombo && (!res1_Normal || !res2_Normal)) {
+                        const endAt1_Swap = new Date(startAt.getTime() + (dur2 || 30) * 60000); // 2 First
+                        const endAt2_Swap = new Date(endAt1_Swap.getTime() + dur1 * 60000); // 1 Second
+
+                        const res1_Swap = findFree(targetPool2, startAt, endAt1_Swap); // Svc2
+                        const res2_Swap = findFree(pool1Info.pool, endAt1_Swap, endAt2_Swap); // Svc1
+
+                        if (res1_Swap && res2_Swap) {
+                            useSwappedOrder = true;
+                            resId1 = res2_Swap; // Svc1 (2nd)
+                            resId2 = res1_Swap; // Svc2 (1st)
                         }
                     }
-                    // Fallback to Other if empty
-                    if (!staff2 && !(row[11] as string)?.trim()) {
-                        staff2 = staffMap.get('other');
-                    }
 
-                    // Booking Logic
-                    if (service1) {
-                        const isCombo = !!service2;
-                        const comboLinkId = isCombo ? crypto.randomUUID() : null;
+                    // Commit
+                    let startAt1 = startAt;
+                    let endAt1 = endAt1_Normal;
+                    let startAt2 = endAt1_Normal;
+                    let endAt2 = endAt2_Normal || endAt1_Normal;
 
-                        const getPool = (svc: Service) => {
-                            const nameLower = svc.name.toLowerCase();
-                            if (nameLower.includes('couple') && nameLower.includes('course')) return { pool: resourcePools.aroma, type: 'aroma' }; // Default 1st part to Aroma
-                            if (svc.category === 'Aroma' || nameLower.includes('aroma')) return { pool: resourcePools.aroma, type: 'aroma' };
-                            if (svc.category === 'Head Spa' || nameLower.includes('head spa')) return { pool: resourcePools.spa, type: 'spa' };
-                            return { pool: resourcePools.seat, type: 'seat' };
-                        };
+                    if (useSwappedOrder) {
+                        const svc2_Start = startAt;
+                        const svc2_End = new Date(startAt.getTime() + (dur2 || 30) * 60000);
+                        startAt1 = svc2_End;
+                        endAt1 = new Date(startAt1.getTime() + dur1 * 60000);
+                        startAt2 = svc2_Start;
+                        endAt2 = svc2_End;
 
-                        const pool1Info = getPool(service1);
-                        let pool2Info = isCombo && service2 ? getPool(service2) : null;
-
-                        // Special Rule: Couple Course 2nd part is always Head Spa
-                        if (isCombo && service1.name.toLowerCase().includes('couple') && service2?.name.toLowerCase().includes('couple')) {
-                            pool2Info = { pool: resourcePools.spa, type: 'spa' };
-                        }
-                        let useSwappedOrder = false;
-                        let resId1: string | null = null;
-                        let resId2: string | null = null;
-
-                        // Logic 1: Normal
-                        const endAt1_Normal = new Date(startAt.getTime() + dur1 * 60000);
-                        let targetPool2 = pool2Info ? pool2Info.pool : [];
-                        let targetType2 = pool2Info ? pool2Info.type : 'seat';
-
-                        if (isCombo && service1 && service2) {
-                            const name1Lower = service1.name.toLowerCase();
-                            if (name1Lower.includes('first time') || name1Lower.includes('champaca') || name1Lower.includes('advance') || name1Lower.includes('deluxe') || name1Lower.includes('special offer') || name1Lower.includes('v.i.p') || name1Lower.includes('vip')) {
-                                console.log(`[Sync] Forced Spa for 2nd part: ${service1.name}`);
-                                targetPool2 = resourcePools.spa;
-                                targetType2 = 'spa';
-                            }
-                        }
-
-                        const res1_Normal = findFree(pool1Info.pool, startAt, endAt1_Normal);
-                        let res2_Normal: string | null = null;
-                        let endAt2_Normal: Date | null = null;
+                        // Book
+                        bookResource(resId1!, startAt1, endAt1);
+                        bookResource(resId2!, startAt2, endAt2);
+                    } else {
+                        // Normal or Overflow
+                        resId1 = res1_Normal || `overflow-${pool1Info.type}`;
+                        // If overflow, we don't block resource? Or just don't track usage.
+                        // Ideally we track overflow too if it was a real resource ID, but overflow-X is virtual.
+                        if (res1_Normal) { bookResource(resId1, startAt1, endAt1); }
 
                         if (isCombo) {
-                            endAt2_Normal = new Date(endAt1_Normal.getTime() + (dur2 || 30) * 60000);
-                            res2_Normal = findFree(targetPool2, endAt1_Normal, endAt2_Normal);
+                            startAt2 = endAt1;
+                            // endAt2 set above
+                            resId2 = res2_Normal || `overflow-${targetType2}`;
+                            if (res2_Normal) { bookResource(resId2, startAt2, endAt2); }
                         }
+                    }
 
-                        // Logic 2: Swap
-                        if (isCombo && (!res1_Normal || !res2_Normal)) {
-                            const endAt1_Swap = new Date(startAt.getTime() + (dur2 || 30) * 60000); // 2 First
-                            const endAt2_Swap = new Date(endAt1_Swap.getTime() + dur1 * 60000); // 1 Second
+                    await prisma.booking.create({
+                        data: {
+                            menuId: service1.id,
+                            menuName: service1.name,
+                            staffId: staff1?.id,
+                            resourceId: resId1!,
+                            startAt: startAt1,
+                            endAt: endAt1,
+                            status: 'SYNC_DRAFT', // Changed from Confirmed
+                            clientName: clientName,
+                            comboLinkId: comboLinkId,
+                            isComboMain: isCombo,
+                        },
+                    });
 
-                            const res1_Swap = findFree(targetPool2, startAt, endAt1_Swap); // Svc2
-                            const res2_Swap = findFree(pool1Info.pool, endAt1_Swap, endAt2_Swap); // Svc1
-
-                            if (res1_Swap && res2_Swap) {
-                                useSwappedOrder = true;
-                                resId1 = res2_Swap; // Svc1 (2nd)
-                                resId2 = res1_Swap; // Svc2 (1st)
-                            }
-                        }
-
-                        // Commit
-                        let startAt1 = startAt;
-                        let endAt1 = endAt1_Normal;
-                        let startAt2 = endAt1_Normal;
-                        let endAt2 = endAt2_Normal || endAt1_Normal;
-
-                        if (useSwappedOrder) {
-                            const svc2_Start = startAt;
-                            const svc2_End = new Date(startAt.getTime() + (dur2 || 30) * 60000);
-                            startAt1 = svc2_End;
-                            endAt1 = new Date(startAt1.getTime() + dur1 * 60000);
-                            startAt2 = svc2_Start;
-                            endAt2 = svc2_End;
-
-                            // Book
-                            bookResource(resId1!, startAt1, endAt1);
-                            bookResource(resId2!, startAt2, endAt2);
-                        } else {
-                            // Normal or Overflow
-                            resId1 = res1_Normal || `overflow-${pool1Info.type}`;
-                            // If overflow, we don't block resource? Or just don't track usage.
-                            // Ideally we track overflow too if it was a real resource ID, but overflow-X is virtual.
-                            if (res1_Normal) { bookResource(resId1, startAt1, endAt1); }
-
-                            if (isCombo) {
-                                startAt2 = endAt1;
-                                // endAt2 set above
-                                resId2 = res2_Normal || `overflow-${targetType2}`;
-                                if (res2_Normal) { bookResource(resId2, startAt2, endAt2); }
-                            }
-                        }
-
+                    if (isCombo && service2) {
                         await prisma.booking.create({
                             data: {
-                                menuId: service1.id,
-                                menuName: service1.name,
-                                staffId: staff1?.id,
-                                resourceId: resId1!,
-                                startAt: startAt1,
-                                endAt: endAt1,
+                                menuId: service2.id,
+                                menuName: service2.name,
+                                staffId: staff2?.id || staff1?.id,
+                                resourceId: resId2!,
+                                startAt: startAt2,
+                                endAt: endAt2,
                                 status: 'SYNC_DRAFT', // Changed from Confirmed
                                 clientName: clientName,
                                 comboLinkId: comboLinkId,
-                                isComboMain: isCombo,
+                                isComboMain: false,
                             },
                         });
-
-                        if (isCombo && service2) {
-                            await prisma.booking.create({
-                                data: {
-                                    menuId: service2.id,
-                                    menuName: service2.name,
-                                    staffId: staff2?.id || staff1?.id,
-                                    resourceId: resId2!,
-                                    startAt: startAt2,
-                                    endAt: endAt2,
-                                    status: 'SYNC_DRAFT', // Changed from Confirmed
-                                    clientName: clientName,
-                                    comboLinkId: comboLinkId,
-                                    isComboMain: false,
-                                },
-                            });
-                        }
-
-                        successCount++;
-                    } else {
-                        console.log(`[Sync] Skipped Row (Service Not Found): "${svcName1}" | Client: ${clientName} | Date: ${dateStr}`);
-                        errorCount++;
-                        if (svcName1 && !missingServices.includes(svcName1)) {
-                            missingServices.push(svcName1);
-                        }
                     }
 
-                } catch (e) {
+                    successCount++;
+                } else {
+                    console.log(`[Sync] Skipped Row (Service Not Found): "${svcName1}" | Client: ${clientName} | Date: ${dateStr}`);
                     errorCount++;
-                }
-            } // end loop
-
-            // --- SYNC BOOKING MEMOS (From 'Booking' sheet) ---
-            let memoError = ''; // Track specific errors for user feedback
-            let memoCount = 0;
-            try {
-                console.log("[Sync] Fetching 'Booking' sheet for memos...");
-                const memoResponse = await sheets.spreadsheets.values.get({
-                    spreadsheetId: SHEET_ID,
-                    range: "'Booking'!A6:I", // Data finds up to Col I
-                });
-                const memoRows = memoResponse.data.values || [];
-                console.log(`[Sync] Found ${memoRows.length} rows in Booking sheet.`);
-
-                // Use UTC boundaries for safe comparison
-                const startOfMonthUTC = new Date(Date.UTC(year, month - 1, 1));
-                const endOfMonthUTC = new Date(Date.UTC(year, month, 1));
-
-                // Clear existing memos for this month (using UTC range matches)
-                await prisma.bookingMemo.deleteMany({
-                    where: {
-                        date: { gte: syncStart, lt: endOfMonthUTC }
-                    }
-                });
-
-                for (const row of memoRows) {
-                    // Col D(3)=Persons, E(4)=BookingDate, F(5)=Time, G(6)=Content
-                    const personsStr = (row[3] as string)?.trim();
-                    const bookDateStr = (row[4] as string)?.trim(); // dd/mm/yyyy or yyyy/mm/dd
-                    const timeStr = (row[5] as string)?.trim();
-                    const content = (row[6] as string)?.trim();
-                    const comeStr = (row[8] as string)?.trim()?.toUpperCase();
-
-                    if (!bookDateStr) continue;
-
-                    // Parse Date safely
-                    let yearStr, monthStr, dayStr;
-
-                    if (bookDateStr.includes('/')) {
-                        const parts = bookDateStr.split('/');
-                        if (parts.length === 3) {
-                            if (parts[0].length === 4) {
-                                // YYYY/MM/DD
-                                [yearStr, monthStr, dayStr] = parts;
-                            } else {
-                                // DD/MM/YYYY (Assuming DMY over MDY based on Vietnam context)
-                                [dayStr, monthStr, yearStr] = parts;
-                            }
-                        }
-                    } else if (bookDateStr.includes('-')) {
-                        const parts = bookDateStr.split('-');
-                        if (parts.length === 3) {
-                            if (parts[0].length === 4) {
-                                // YYYY-MM-DD
-                                [yearStr, monthStr, dayStr] = parts;
-                            } else {
-                                // DD-MM-YYYY
-                                [dayStr, monthStr, yearStr] = parts;
-                            }
-                        }
-                    }
-
-                    if (!yearStr || !monthStr || !dayStr) continue;
-
-                    const y = parseInt(yearStr);
-                    const m = parseInt(monthStr);
-                    const d = parseInt(dayStr);
-
-                    // Create UTC date
-                    const memoDate = new Date(Date.UTC(y, m - 1, d));
-
-                    // Comparison
-                    if (memoDate >= syncStart && memoDate < endOfMonthUTC) {
-                        await prisma.bookingMemo.create({
-                            data: {
-                                date: memoDate,
-                                time: timeStr || '',
-                                persons: parseInt(personsStr) || 0,
-                                content: content || '',
-                                hasCome: comeStr === 'TRUE',
-                            }
-                        });
-                        memoCount++;
+                    if (svcName1 && !missingServices.includes(svcName1)) {
+                        missingServices.push(svcName1);
                     }
                 }
-                console.log(`[Sync] Synced ${memoCount} Booking Memos for ${month}/${year}.`);
 
-            } catch (error: any) {
-                console.error("[Sync] Error syncing Booking Memos:", error.message);
-                memoError = error.message;
+            } catch (e) {
+                errorCount++;
             }
+        } // end loop
 
-            revalidatePath('/admin/timeline');
+        // --- SYNC BOOKING MEMOS (From 'Booking' sheet) ---
+        let memoError = ''; // Track specific errors for user feedback
+        let memoCount = 0;
+        try {
+            console.log("[Sync] Fetching 'Booking' sheet for memos...");
+            const memoResponse = await sheets.spreadsheets.values.get({
+                spreadsheetId: SHEET_ID,
+                range: "'Booking'!A6:I", // Data finds up to Col I
+            });
+            const memoRows = memoResponse.data.values || [];
+            console.log(`[Sync] Found ${memoRows.length} rows in Booking sheet.`);
 
-            let msg = `Done: ${successCount} OK.`;
-            if (missingServices.length > 0) msg += ` Missing: ${missingServices.slice(0, 2).join(', ')}...`;
-            msg += ` [Stats: Sheet=${sheetName}, Rows=${rows.length}, SkipDate=${skippedDateCount}, SkipSvc=${skippedServiceCount}]`;
+            // Use UTC boundaries for safe comparison
+            const startOfMonthUTC = new Date(Date.UTC(year, month - 1, 1));
+            const endOfMonthUTC = new Date(Date.UTC(year, month, 1));
 
-            return { success: true, message: msg };
+            // Clear existing memos for this month (using UTC range matches)
+            await prisma.bookingMemo.deleteMany({
+                where: {
+                    date: { gte: syncStart, lt: endOfMonthUTC }
+                }
+            });
 
-        } catch (e: any) {
-            console.error(e);
-            return { success: false, message: e.message };
+            for (const row of memoRows) {
+                // Col D(3)=Persons, E(4)=BookingDate, F(5)=Time, G(6)=Content
+                const personsStr = (row[3] as string)?.trim();
+                const bookDateStr = (row[4] as string)?.trim(); // dd/mm/yyyy or yyyy/mm/dd
+                const timeStr = (row[5] as string)?.trim();
+                const content = (row[6] as string)?.trim();
+                const comeStr = (row[8] as string)?.trim()?.toUpperCase();
+
+                if (!bookDateStr) continue;
+
+                // Parse Date safely
+                let yearStr, monthStr, dayStr;
+
+                if (bookDateStr.includes('/')) {
+                    const parts = bookDateStr.split('/');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            // YYYY/MM/DD
+                            [yearStr, monthStr, dayStr] = parts;
+                        } else {
+                            // DD/MM/YYYY (Assuming DMY over MDY based on Vietnam context)
+                            [dayStr, monthStr, yearStr] = parts;
+                        }
+                    }
+                } else if (bookDateStr.includes('-')) {
+                    const parts = bookDateStr.split('-');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            // YYYY-MM-DD
+                            [yearStr, monthStr, dayStr] = parts;
+                        } else {
+                            // DD-MM-YYYY
+                            [dayStr, monthStr, yearStr] = parts;
+                        }
+                    }
+                }
+
+                if (!yearStr || !monthStr || !dayStr) continue;
+
+                const y = parseInt(yearStr);
+                const m = parseInt(monthStr);
+                const d = parseInt(dayStr);
+
+                // Create UTC date
+                const memoDate = new Date(Date.UTC(y, m - 1, d));
+
+                // Comparison
+                if (memoDate >= syncStart && memoDate < endOfMonthUTC) {
+                    await prisma.bookingMemo.create({
+                        data: {
+                            date: memoDate,
+                            time: timeStr || '',
+                            persons: parseInt(personsStr) || 0,
+                            content: content || '',
+                            hasCome: comeStr === 'TRUE',
+                        }
+                    });
+                    memoCount++;
+                }
+            }
+            console.log(`[Sync] Synced ${memoCount} Booking Memos for ${month}/${year}.`);
+
+        } catch (error: any) {
+            console.error("[Sync] Error syncing Booking Memos:", error.message);
+            memoError = error.message;
         }
+
+        revalidatePath('/admin/timeline');
+
+        let msg = `Done: ${successCount} OK.`;
+        if (missingServices.length > 0) msg += ` Missing: ${missingServices.slice(0, 2).join(', ')}...`;
+        msg += ` [Stats: Sheet=${sheetName}, Rows=${rows.length}, SkipDate=${skippedDateCount}, SkipSvc=${skippedServiceCount}]`;
+
+        return { success: true, message: msg };
+
+    } catch (e: any) {
+        console.error(e);
+        return { success: false, message: e.message };
     }
+}
