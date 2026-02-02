@@ -17,6 +17,11 @@ export default async function AdminPage({
     const year = sp.year ? parseInt(String(sp.year)) : now.getFullYear();
     const month = sp.month ? parseInt(String(sp.month)) : now.getMonth() + 1; // 1-12
 
+    // Calculate Data Range (UTC)
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
+    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+
+    // Filter staff by endDate - exclude staff who left before this month
     const allStaff = await prisma.staff.findMany({
         where: {
             isActive: true,
@@ -27,12 +32,6 @@ export default async function AdminPage({
         },
         orderBy: { id: 'asc' }
     });
-
-    // Calculate Data Range (UTC)
-    // Start of month
-    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
-    // End of month
-    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
     // Fetch All Shifts (for Calendar and Summary)
     const allShifts = await prisma.shift.findMany({
