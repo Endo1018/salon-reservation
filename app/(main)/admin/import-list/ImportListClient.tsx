@@ -12,6 +12,7 @@ import { RefreshCcw, Check, AlertTriangle, Lock, Trash2, Edit } from 'lucide-rea
 import TimelineNav from '../timeline/components/TimelineNav';
 import StaffSummarySection from './components/StaffSummarySection';
 import BookingModal from '../timeline/components/BookingModal'; // Import BookingModal
+import ConfirmDialog from '@/app/components/ConfirmDialog'; // Import ConfirmDialog
 import { deleteBooking } from '@/app/actions/timeline'; // Reuse timeline delete logic
 import { format } from 'date-fns'; // It's formatted as "HH:mm"
 
@@ -70,58 +71,112 @@ export default function ImportListPage() {
         }
     };
 
+    // State for Confirm Dialog
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        isDestructive?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        isDestructive: false
+    });
+
+    const openConfirm = (title: string, message: string, onConfirm: () => void, isDestructive = false) => {
+        setConfirmState({
+            isOpen: true,
+            title,
+            message,
+            onConfirm,
+            isDestructive
+        });
+    };
+
+    const closeConfirm = () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+    };
+
     // Actions
-    const handleSync = async () => {
-        if (!confirm('Google Sheetsからデータを同期しますか？\n(現在のドラフトは上書きされます)')) return;
-        setIsSyncing(true);
-        const targetDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
-        const res = await syncBookingsFromGoogleSheets(targetDateStr);
-        setIsSyncing(false);
+    const handleSync = () => {
+        openConfirm(
+            'Sync from Google Sheets',
+            'Google Sheetsからデータを同期しますか？\n(現在のドラフトは上書きされます)',
+            async () => {
+                closeConfirm();
+                setIsSyncing(true);
+                const targetDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+                const res = await syncBookingsFromGoogleSheets(targetDateStr);
+                setIsSyncing(false);
 
-        if (res.success) {
-            toast.success(res.message);
-            loadData();
-        } else {
-            toast.error(res.message);
-        }
-    };
-
-    const handlePublish = async () => {
-        if (!confirm('ドラフトを本番(Timeline)に反映しますか？\n(既存の予約は上書きされます)')) return;
-        setIsPublishing(true);
-        const res = await publishDrafts(year, month);
-        setIsPublishing(false);
-
-        if (res.success) {
-            toast.success(res.message);
-            loadData();
-        } else {
-            toast.error(res.message);
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!confirm('この予約を削除しますか？\n(本番データも削除されます)')) return;
-        try {
-            await deleteBooking(id); // Use timeline delete action
-            toast.success('Deleted');
-            loadData();
-        } catch (e) {
-            toast.error('Deletion failed');
-            console.error(e);
-        }
-    };
-
-    const handleClearFeb = async () => {
-        if (confirm('2026年2月の全データを強制削除しますか？\n(ドラフト・確定予約すべて削除されます)')) {
-            const res = await clearFebruaryData();
-            if (res.success) {
-                toast.success(`Deleted ${res.count} records.`);
-                await loadData();
-            } else {
-                toast.error(`Failed: ${res.error}`);
+                if (res.success) {
+                    toast.success(res.message);
+                    loadData();
+                } else {
+                    toast.error(res.message);
+                }
             }
-        }
+        );
+    };
+
+    const handlePublish = () => {
+        openConfirm(
+            'Publish to Timeline',
+            'ドラフトを本番(Timeline)に反映しますか？\n(既存の予約は上書きされます)',
+            async () => {
+                closeConfirm();
+                setIsPublishing(true);
+                const res = await publishDrafts(year, month);
+                setIsPublishing(false);
+
+                if (res.success) {
+                    toast.success(res.message);
+                    loadData();
+                } else {
+                    toast.error(res.message);
+                }
+            }
+        );
+    };
+
+    const handleDelete = (id: string) => {
+        openConfirm(
+            'Delete Record',
+            'この予約を削除しますか？\n(本番データも削除されます)',
+            async () => {
+                closeConfirm();
+                try {
+                    await deleteBooking(id); // Use timeline delete action
+                    toast.success('Deleted');
+                    loadData();
+                } catch (e) {
+                    toast.error('Deletion failed');
+                    console.error(e);
+                }
+            },
+            true
+        );
+    };
+
+    const handleClearFeb = () => {
+        openConfirm(
+            'Clear Data',
+            '2026年2月の全データを強制削除しますか？\n(ドラフト・確定予約すべて削除されます)',
+            async () => {
+                closeConfirm();
+                const res = await clearFebruaryData();
+                if (res.success) {
+                    toast.success(`Deleted ${res.count} records.`);
+                    await loadData();
+                } else {
+                    toast.error(`Failed: ${res.error}`);
+                }
+            },
+            true
+        );
     };
 
     // Edit Logic
@@ -413,6 +468,16 @@ export default function ImportListPage() {
                     defaultTime={modalDefaults.time}
                     defaultResource={modalDefaults.resource}
                     editBookingId={editBookingId}
+                />
+
+                {/* Confirm Dialog */}
+                <ConfirmDialog
+                    isOpen={confirmState.isOpen}
+                    onClose={closeConfirm}
+                    onConfirm={confirmState.onConfirm}
+                    title={confirmState.title}
+                    message={confirmState.message}
+                    isDestructive={confirmState.isDestructive}
                 />
             </div>
         </div>
