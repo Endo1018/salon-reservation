@@ -2,6 +2,7 @@
 
 import { updateAttendance, deleteAttendance } from '@/app/actions/attendance';
 import { useState, useEffect } from 'react';
+import ConfirmDialog from '@/app/components/ConfirmDialog';
 
 // Simplified Type
 type Rec = {
@@ -143,6 +144,29 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
 
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Confirm Dialog State
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        deleteId: number | null;
+    }>({ isOpen: false, deleteId: null });
+
+    const openDeleteConfirm = (id: number) => {
+        setConfirmState({ isOpen: true, deleteId: id });
+    };
+
+    const closeDeleteConfirm = () => {
+        setConfirmState({ isOpen: false, deleteId: null });
+    };
+
+    const executeDelete = async () => {
+        if (confirmState.deleteId === null) return;
+        setIsDeleting(true);
+        closeDeleteConfirm();
+        await deleteAttendance(confirmState.deleteId);
+        setIsDeleting(false);
+        if (editingId === confirmState.deleteId) stopEditing();
+    };
+
     const startEditing = (rec: Rec) => {
         setEditingId(rec.id);
         // Normalize to HH:mm
@@ -244,231 +268,241 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         stopEditing();
     };
 
-    const handleDelete = async (id: number) => {
-        if (confirm('この勤怠記録を削除してもよろしいですか？ (Are you sure?)')) {
-            setIsDeleting(true);
-            await deleteAttendance(id);
-            setIsDeleting(false);
-            if (editingId === id) stopEditing();
-        }
+    const handleDelete = (id: number) => {
+        openDeleteConfirm(id);
     };
 
     return (
-        <table className="w-full text-left text-sm">
-            <thead className="bg-slate-900/50 text-slate-400 uppercase">
-                <tr>
-                    <th className="p-4">日付</th>
-                    <th className="p-4">氏名</th>
-                    <th className="p-4">開始</th>
-                    <th className="p-4">終了</th>
-                    <th className="p-4">休憩</th>
-                    <th className="p-4">遅刻</th>
-                    <th className="p-4">早退</th>
-                    <th className="p-4">残業</th>
-                    <th className="p-4">実働</th>
-                    <th className="p-4">状態</th>
-                    <th className="p-4">操作</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700">
-                {initialData.map((rec) => {
-                    const isEditing = editingId === rec.id;
+        <>
+            <table className="w-full text-left text-sm">
+                <thead className="bg-slate-900/50 text-slate-400 uppercase">
+                    <tr>
+                        <th className="p-4">日付</th>
+                        <th className="p-4">氏名</th>
+                        <th className="p-4">開始</th>
+                        <th className="p-4">終了</th>
+                        <th className="p-4">休憩</th>
+                        <th className="p-4">遅刻</th>
+                        <th className="p-4">早退</th>
+                        <th className="p-4">残業</th>
+                        <th className="p-4">実働</th>
+                        <th className="p-4">状態</th>
+                        <th className="p-4">操作</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                    {initialData.map((rec) => {
+                        const isEditing = editingId === rec.id;
 
-                    // Calc Display Late/Early
-                    const { late: calculatedLate, early } = calcLateEarly(
-                        isEditing ? newStart : (rec.start ? rec.start.slice(0, 5) : ''),
-                        isEditing ? newEnd : (rec.end ? rec.end.slice(0, 5) : ''),
-                        rec.shiftStart,
-                        rec.shiftEnd,
-                        isEditing ? Number(newBreakTime) : rec.breakTime
-                    );
+                        // Calc Display Late/Early
+                        const { late: calculatedLate, early } = calcLateEarly(
+                            isEditing ? newStart : (rec.start ? rec.start.slice(0, 5) : ''),
+                            isEditing ? newEnd : (rec.end ? rec.end.slice(0, 5) : ''),
+                            rec.shiftStart,
+                            rec.shiftEnd,
+                            isEditing ? Number(newBreakTime) : rec.breakTime
+                        );
 
-                    // Determine what to show for Late
-                    // View Mode: use DB override if present, else calc.
-                    // Edit Mode: use manualLate state if present, else calc.
-                    let displayLateMins = calculatedLate;
-                    if (isEditing) {
-                        // In edit mode loop??? No wait.
-                        // `newStart` is global state for the ONE editing row.
-                        // So `calculatedLate` IS correct for the editing row.
+                        // Determine what to show for Late
+                        // View Mode: use DB override if present, else calc.
+                        // Edit Mode: use manualLate state if present, else calc.
+                        let displayLateMins = calculatedLate;
+                        if (isEditing) {
+                            // In edit mode loop??? No wait.
+                            // `newStart` is global state for the ONE editing row.
+                            // So `calculatedLate` IS correct for the editing row.
 
-                        // Wait, `manualLate` is a STRING input (H:MM). e.g. "0:41".
-                        // `calculatedLate` is number (41).
-                    } else {
-                        if (rec.lateTimeOverride !== null && rec.lateTimeOverride !== undefined) {
-                            displayLateMins = rec.lateTimeOverride;
+                            // Wait, `manualLate` is a STRING input (H:MM). e.g. "0:41".
+                            // `calculatedLate` is number (41).
+                        } else {
+                            if (rec.lateTimeOverride !== null && rec.lateTimeOverride !== undefined) {
+                                displayLateMins = rec.lateTimeOverride;
+                            }
                         }
-                    }
 
-                    // For editing input value:
-                    const editingInputValue = manualLate !== null
-                        ? manualLate
-                        : formatDecimalToTime(calculatedLate / 60);
+                        // For editing input value:
+                        const editingInputValue = manualLate !== null
+                            ? manualLate
+                            : formatDecimalToTime(calculatedLate / 60);
 
-                    if (isEditing) {
-                        return (
-                            <tr key={rec.id} className="bg-slate-700/50">
-                                <td className="p-4 text-slate-400">{rec.date}</td>
-                                <td className="p-4 text-slate-400">{rec.staff.name}</td>
-                                <td className="p-4">
-                                    <input
-                                        type="time"
-                                        value={newStart}
-                                        onChange={(e) => setNewStart(e.target.value)}
-                                        className="bg-slate-900 border border-slate-600 rounded p-1 w-24 text-white"
-                                    />
-                                </td>
-                                <td className="p-4">
-                                    <input
-                                        type="time"
-                                        value={newEnd}
-                                        onChange={(e) => setNewEnd(e.target.value)}
-                                        className="bg-slate-900 border border-slate-600 rounded p-1 w-24 text-white"
-                                    />
-                                </td>
-                                <td className="p-4">
-                                    <input
-                                        type="number"
-                                        step="0.25"
-                                        value={newBreakTime}
-                                        onChange={(e) => setNewBreakTime(e.target.value)}
-                                        className="bg-slate-900 border border-slate-600 rounded p-1 w-16 text-white"
-                                    />
-                                </td>
-                                <td className="p-4 text-slate-400">
-                                    <input
-                                        type="text"
-                                        placeholder="0:00"
-                                        value={editingInputValue}
-                                        onChange={(e) => setManualLate(e.target.value)}
-                                        className={`bg-slate-900 border border-slate-600 rounded p-1 w-16 text-white ${editingInputValue !== '0:00' ? 'text-red-400' : ''}`}
-                                    />
-                                </td>
-                                <td className="p-4 text-slate-400">
-                                    {early > 0 ? <span className="text-red-400 font-mono">{formatDecimalToTime(early / 60)}</span> : '-'}
-                                </td>
-                                <td className="p-4">
-                                    {/* Potential Overtime logic */}
-                                    {(() => {
-                                        const r = calculateDuration(newStart, newEnd) || 0;
-                                        const n = Math.max(0, r - Number(newBreakTime));
-                                        const p = Math.max(0, n - 8.0);
-                                        if (p <= 0) return <span className="text-slate-600">-</span>;
-                                        return (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-yellow-400 font-mono text-xs">+{formatDecimalToTime(p)}</span>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={newIsOvertime}
-                                                    onChange={(e) => setNewIsOvertime(e.target.checked)}
-                                                    className="w-4 h-4 bg-slate-900 border-slate-600 rounded"
-                                                    title="Check to approve overtime"
-                                                />
-                                            </div>
-                                        );
-                                    })()}
-                                </td>
-                                <td className="p-4 font-mono text-white">
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={newWorkHours}
-                                        onChange={(e) => setNewWorkHours(e.target.value)}
-                                        className="bg-slate-900 border border-slate-600 rounded p-1 w-20 text-white font-mono"
-                                    />
-                                    <span className="ml-1 text-xs text-slate-500">h</span>
-                                </td>
-                                <td className="p-4">
-                                    <label className="flex items-center gap-2 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-600">
+                        if (isEditing) {
+                            return (
+                                <tr key={rec.id} className="bg-slate-700/50">
+                                    <td className="p-4 text-slate-400">{rec.date}</td>
+                                    <td className="p-4 text-slate-400">{rec.staff.name}</td>
+                                    <td className="p-4">
                                         <input
-                                            type="checkbox"
-                                            checked={newIsCheck}
-                                            onChange={(e) => setNewIsCheck(e.target.checked)}
-                                            className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-[var(--primary)]"
+                                            type="time"
+                                            value={newStart}
+                                            onChange={(e) => setNewStart(e.target.value)}
+                                            className="bg-slate-900 border border-slate-600 rounded p-1 w-24 text-white"
                                         />
-                                        <span className="text-xs text-white">要確認</span>
-                                    </label>
+                                    </td>
+                                    <td className="p-4">
+                                        <input
+                                            type="time"
+                                            value={newEnd}
+                                            onChange={(e) => setNewEnd(e.target.value)}
+                                            className="bg-slate-900 border border-slate-600 rounded p-1 w-24 text-white"
+                                        />
+                                    </td>
+                                    <td className="p-4">
+                                        <input
+                                            type="number"
+                                            step="0.25"
+                                            value={newBreakTime}
+                                            onChange={(e) => setNewBreakTime(e.target.value)}
+                                            className="bg-slate-900 border border-slate-600 rounded p-1 w-16 text-white"
+                                        />
+                                    </td>
+                                    <td className="p-4 text-slate-400">
+                                        <input
+                                            type="text"
+                                            placeholder="0:00"
+                                            value={editingInputValue}
+                                            onChange={(e) => setManualLate(e.target.value)}
+                                            className={`bg-slate-900 border border-slate-600 rounded p-1 w-16 text-white ${editingInputValue !== '0:00' ? 'text-red-400' : ''}`}
+                                        />
+                                    </td>
+                                    <td className="p-4 text-slate-400">
+                                        {early > 0 ? <span className="text-red-400 font-mono">{formatDecimalToTime(early / 60)}</span> : '-'}
+                                    </td>
+                                    <td className="p-4">
+                                        {/* Potential Overtime logic */}
+                                        {(() => {
+                                            const r = calculateDuration(newStart, newEnd) || 0;
+                                            const n = Math.max(0, r - Number(newBreakTime));
+                                            const p = Math.max(0, n - 8.0);
+                                            if (p <= 0) return <span className="text-slate-600">-</span>;
+                                            return (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-yellow-400 font-mono text-xs">+{formatDecimalToTime(p)}</span>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={newIsOvertime}
+                                                        onChange={(e) => setNewIsOvertime(e.target.checked)}
+                                                        className="w-4 h-4 bg-slate-900 border-slate-600 rounded"
+                                                        title="Check to approve overtime"
+                                                    />
+                                                </div>
+                                            );
+                                        })()}
+                                    </td>
+                                    <td className="p-4 font-mono text-white">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={newWorkHours}
+                                            onChange={(e) => setNewWorkHours(e.target.value)}
+                                            className="bg-slate-900 border border-slate-600 rounded p-1 w-20 text-white font-mono"
+                                        />
+                                        <span className="ml-1 text-xs text-slate-500">h</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <label className="flex items-center gap-2 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-600">
+                                            <input
+                                                type="checkbox"
+                                                checked={newIsCheck}
+                                                onChange={(e) => setNewIsCheck(e.target.checked)}
+                                                className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-[var(--primary)]"
+                                            />
+                                            <span className="text-xs text-white">要確認</span>
+                                        </label>
+                                    </td>
+                                    <td className="p-4 flex items-center">
+                                        <button
+                                            onClick={() => handleSave(rec.id)}
+                                            className="text-green-400 font-bold hover:underline mr-2"
+                                        >
+                                            保存
+                                        </button>
+                                        <button
+                                            onClick={() => stopEditing()}
+                                            className="text-slate-500 hover:text-white mr-2"
+                                        >
+                                            中止
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(rec.id)}
+                                            className="text-red-500 hover:text-red-400"
+                                            disabled={isDeleting}
+                                        >
+                                            削除
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        }
+
+                        return (
+                            <tr key={rec.id} className="hover:bg-slate-700/50 transition-colors">
+                                <td className="p-4 font-mono">{rec.date}</td>
+                                <td className="p-4 font-bold">{rec.staff.name}</td>
+                                <td className="p-4">{rec.start || '-'}</td>
+                                <td className="p-4">{rec.end || '-'}</td>
+                                <td className="p-4 text-slate-400">
+                                    {rec.breakTime ? formatDecimalToTime(rec.breakTime) : '1:00'}
                                 </td>
-                                <td className="p-4 flex items-center">
-                                    <button
-                                        onClick={() => handleSave(rec.id)}
-                                        className="text-green-400 font-bold hover:underline mr-2"
-                                    >
-                                        保存
-                                    </button>
-                                    <button
-                                        onClick={() => stopEditing()}
-                                        className="text-slate-500 hover:text-white mr-2"
-                                    >
-                                        中止
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(rec.id)}
-                                        className="text-red-500 hover:text-red-400"
-                                        disabled={isDeleting}
-                                    >
-                                        削除
-                                    </button>
+                                <td className="p-4 text-slate-400">
+                                    {displayLateMins > 0 ? (
+                                        <span className="text-red-400 font-mono text-xs font-bold">
+                                            {formatDecimalToTime(displayLateMins / 60)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-600">-</span>
+                                    )}
+                                </td>
+                                <td className="p-4 text-slate-400">
+                                    {early > 0 ? (
+                                        <span className="text-red-400 font-mono text-xs font-bold">
+                                            {formatDecimalToTime(early / 60)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-600">-</span>
+                                    )}
+                                </td>
+                                <td className="p-4">
+                                    {rec.overtime > 0 ? (
+                                        <span className="text-yellow-400 font-mono text-xs bg-yellow-900/20 px-2 py-1 rounded">
+                                            +{formatDecimalToTime(rec.overtime)}
+                                            {rec.isOvertime ? ' ✅' : ' ⚠️'}
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-600">-</span>
+                                    )}
+                                </td>
+                                <td className="p-4 font-mono">{formatDecimalToTime(rec.workHours)} h</td>
+                                <td className="p-4">
+                                    {rec.status === 'Error' ? (
+                                        <span className="text-red-400 font-bold text-xs bg-red-900/30 px-2 py-1 rounded">ERROR</span>
+                                    ) : rec.status === 'Check' ? (
+                                        <span className="text-orange-400 font-bold text-xs bg-orange-900/30 px-2 py-1 rounded">CHECK</span>
+                                    ) : (
+                                        <span className="text-green-400 font-bold text-xs">OK</span>
+                                    )}
+                                </td>
+                                <td className="p-4 flex items-center gap-2">
+                                    <button onClick={() => startEditing(rec)} className="text-xs bg-slate-700 px-3 py-1 rounded hover:bg-slate-600 border border-slate-500">編集</button>
+                                    <button onClick={() => handleDelete(rec.id)} className="text-xs text-red-500 hover:text-red-400">削除</button>
                                 </td>
                             </tr>
                         );
-                    }
+                    })}
+                </tbody>
+            </table>
 
-                    return (
-                        <tr key={rec.id} className="hover:bg-slate-700/50 transition-colors">
-                            <td className="p-4 font-mono">{rec.date}</td>
-                            <td className="p-4 font-bold">{rec.staff.name}</td>
-                            <td className="p-4">{rec.start || '-'}</td>
-                            <td className="p-4">{rec.end || '-'}</td>
-                            <td className="p-4 text-slate-400">
-                                {rec.breakTime ? formatDecimalToTime(rec.breakTime) : '1:00'}
-                            </td>
-                            <td className="p-4 text-slate-400">
-                                {displayLateMins > 0 ? (
-                                    <span className="text-red-400 font-mono text-xs font-bold">
-                                        {formatDecimalToTime(displayLateMins / 60)}
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-600">-</span>
-                                )}
-                            </td>
-                            <td className="p-4 text-slate-400">
-                                {early > 0 ? (
-                                    <span className="text-red-400 font-mono text-xs font-bold">
-                                        {formatDecimalToTime(early / 60)}
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-600">-</span>
-                                )}
-                            </td>
-                            <td className="p-4">
-                                {rec.overtime > 0 ? (
-                                    <span className="text-yellow-400 font-mono text-xs bg-yellow-900/20 px-2 py-1 rounded">
-                                        +{formatDecimalToTime(rec.overtime)}
-                                        {rec.isOvertime ? ' ✅' : ' ⚠️'}
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-600">-</span>
-                                )}
-                            </td>
-                            <td className="p-4 font-mono">{formatDecimalToTime(rec.workHours)} h</td>
-                            <td className="p-4">
-                                {rec.status === 'Error' ? (
-                                    <span className="text-red-400 font-bold text-xs bg-red-900/30 px-2 py-1 rounded">ERROR</span>
-                                ) : rec.status === 'Check' ? (
-                                    <span className="text-orange-400 font-bold text-xs bg-orange-900/30 px-2 py-1 rounded">CHECK</span>
-                                ) : (
-                                    <span className="text-green-400 font-bold text-xs">OK</span>
-                                )}
-                            </td>
-                            <td className="p-4 flex items-center gap-2">
-                                <button onClick={() => startEditing(rec)} className="text-xs bg-slate-700 px-3 py-1 rounded hover:bg-slate-600 border border-slate-500">編集</button>
-                                <button onClick={() => handleDelete(rec.id)} className="text-xs text-red-500 hover:text-red-400">削除</button>
-                            </td>
-                        </tr>
-                    );
-                })}
-            </tbody>
-        </table>
+            {/* Confirm Dialog */}
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                onClose={closeDeleteConfirm}
+                onConfirm={executeDelete}
+                title="勤怠記録を削除"
+                message="この勤怠記録を削除してもよろしいですか？&#10;(Are you sure?)"
+                confirmText="削除"
+                cancelText="キャンセル"
+                isDestructive={true}
+                isLoading={isDeleting}
+            />
+        </>
     );
 }
