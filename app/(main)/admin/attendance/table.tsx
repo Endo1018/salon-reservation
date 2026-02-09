@@ -172,7 +172,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         // Normalize to HH:mm
         setNewStart(rec.start ? rec.start.slice(0, 5) : '');
         setNewEnd(rec.end ? rec.end.slice(0, 5) : '');
-        setNewBreakTime(String(rec.breakTime || 1.0));
+        setNewBreakTime(String(rec.breakTime ?? 1.0));
         setNewIsOvertime(rec.isOvertime || false);
         setNewWorkHours(String(rec.workHours));
         setNewIsCheck(rec.status === 'Check');

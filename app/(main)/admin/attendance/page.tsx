@@ -150,7 +150,7 @@ export default async function AttendancePage({
             staff: {
                 name: record.staff.name
             },
-            breakTime: record.breakTime || 1.0,
+            breakTime: record.breakTime ?? 1.0,
             overtime: record.overtime || 0,
             isOvertime: record.isOvertime || false,
             lateMins,
