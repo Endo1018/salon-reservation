@@ -124,6 +124,7 @@ model Booking {
   comboLinkId String?
   isComboMain Boolean   @default(false)
   isLocked    Boolean   @default(false) // Protect from sync overwrites
+  totalPrice  Int       @default(0)
   customerId  String?
   customer    Customer? @relation(fields: [customerId], references: [id])
   service     Service   @relation(fields: [menuId], references: [id])
