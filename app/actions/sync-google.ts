@@ -116,7 +116,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         try {
             const response = await sheets.spreadsheets.values.get({
                 spreadsheetId: SHEET_ID,
-                range: `'${sheetName}'!A2:L`, // Quote the name for safety
+                range: `'${sheetName}'!A2:O`, // Quote the name for safety
             });
             rows = response.data.values || [];
         } catch (error: any) {
@@ -146,8 +146,9 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
         const staffList = await prisma.staff.findMany();
         const serviceList = await prisma.service.findMany();
-        const staffMap = new Map<string, Staff>(staffList.map((s) => [s.name.trim().toLowerCase(), s]));
-        const serviceMap = new Map<string, Service>(serviceList.map((s) => [s.name.trim().toLowerCase(), s]));
+        const normalizeName = (n: string) => (n || '').replace(/\u00a0/g, ' ').trim().toLowerCase();
+        const staffMap = new Map<string, Staff>(staffList.map((s) => [normalizeName(s.name), s]));
+        const serviceMap = new Map<string, Service>(serviceList.map((s) => [normalizeName(s.name), s]));
 
         // 4. Calculate Sync Scope (Protect Past Data)
         // Correctly align startOfMonth to 00:00 Vietnam Time (UTC-7)
@@ -275,6 +276,10 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const staffName2 = (row[11] as string)?.trim();
 
+                // Titanium Edition: Amount Handling (Tax-included amount in Column O)
+                const rawTotalAmount = row[14] as string; // Column O
+                const totalAmount = parseInt((rawTotalAmount || '0').replace(/[^0-9]/g, '')) || 0;
+
                 // Date Parse (DD/MM/YYYY)
                 const [dd, mm, yyyy] = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
 
@@ -331,11 +336,11 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 }
 
                 // Match Staff
-                let staff1: Staff | undefined = staffMap.get((row[10] as string)?.trim()?.toLowerCase() || '');
-                if (!staff1 && row[10]) {
-                    const s1n = (row[10] as string).toLowerCase();
+                const s1n = normalizeName(row[10] as string);
+                let staff1: Staff | undefined = staffMap.get(s1n);
+                if (!staff1 && s1n) {
                     for (const [k, v] of staffMap.entries()) {
-                        if (k.includes(s1n)) {
+                        if (k.includes(s1n) || s1n.includes(k)) {
                             staff1 = v;
                             break;
                         }
@@ -346,11 +351,11 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                     staff1 = staffMap.get('other');
                 }
 
-                let staff2: Staff | undefined = staffMap.get((row[11] as string)?.trim()?.toLowerCase() || '');
-                if (!staff2 && row[11]) {
-                    const s2n = (row[11] as string).toLowerCase();
+                const s2n = normalizeName(row[11] as string);
+                let staff2: Staff | undefined = staffMap.get(s2n);
+                if (!staff2 && s2n) {
                     for (const [k, v] of staffMap.entries()) {
-                        if (k.includes(s2n)) {
+                        if (k.includes(s2n) || s2n.includes(k)) {
                             staff2 = v;
                             break;
                         }
@@ -467,6 +472,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                             clientName: clientName,
                             comboLinkId: comboLinkId,
                             isComboMain: isCombo,
+                            totalPrice: totalAmount,
                         },
                     });
 
@@ -483,6 +489,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                                 clientName: clientName,
                                 comboLinkId: comboLinkId,
                                 isComboMain: false,
+                                totalPrice: 0, // Store in main booking only for simplicity, or 0 for sub
                             },
                         });
                     }
