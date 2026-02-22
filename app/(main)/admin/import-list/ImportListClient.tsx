@@ -408,6 +408,7 @@ export default function ImportListPage() {
                                     Staff 1 {sortConfig?.key === 'staff1' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </th>
                                 <th className="p-3 border-b border-slate-700 min-w-[100px]">Staff 2</th>
+                                <th className="p-3 border-b border-slate-700 min-w-[120px]">Sales</th>
                                 <th className="p-3 border-b border-slate-700 w-24">Actions</th>
                             </tr>
                         </thead>
@@ -427,6 +428,9 @@ export default function ImportListPage() {
                                     <td className="p-3 font-mono text-center text-slate-400">{row.time2 || '-'}</td>
                                     <td className="p-3 text-yellow-500 font-bold">{row.staff1}</td>
                                     <td className="p-3 text-yellow-500 font-bold opacity-80">{row.staff2}</td>
+                                    <td className="p-3 text-right font-mono text-white">
+                                        {new Intl.NumberFormat('ja-JP').format(row.totalPrice)}
+                                    </td>
                                     <td className="p-3 flex gap-2">
                                         <button
                                             onClick={() => openEdit(row)}
