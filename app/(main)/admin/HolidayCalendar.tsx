@@ -89,7 +89,7 @@ export default function HolidayCalendar({ staffList, offShifts, year, month }: P
     const requiredHolidays = month === 2 ? 4 : Math.max(0, daysInMonth - 26);
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-full">
+        <div className="flex flex-col lg:flex-row gap-6">
             {/* Main Calendar */}
             <div className="flex-1 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
                 {/* Header */}
