@@ -1,5 +1,6 @@
 import HolidayCalendar from './HolidayCalendar';
 import MonthlyAttendanceSummary from './MonthlyAttendanceSummary';
+import DashboardAnalytics from './components/DashboardAnalytics';
 import Link from 'next/link';
 import prisma from '@/lib/db';
 
@@ -66,6 +67,13 @@ export default async function AdminPage({
             </header>
 
             <main className="p-6 flex-1 overflow-auto space-y-6">
+                <DashboardAnalytics 
+                    year={year} 
+                    month={month} 
+                    startOfMonth={startOfMonth} 
+                    endOfMonth={endOfMonth} 
+                />
+
                 <HolidayCalendar
                     staffList={allStaff}
                     offShifts={offShifts}
