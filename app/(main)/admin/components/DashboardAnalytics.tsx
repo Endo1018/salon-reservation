@@ -33,12 +33,13 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
             id: true,
             totalPrice: true,
             isComboMain: true,
+            comboLinkId: true,
             menuName: true
         }
     });
 
-    // We count all bookings as individual customers/services provided based on user request.
-    const dailyCustomers = dailyBookings.length;
+    // Count unique visits: standalone bookings (!comboLinkId) + the main booking of a combo (isComboMain = true)
+    const dailyCustomers = dailyBookings.filter(b => !b.comboLinkId || b.isComboMain).length;
     const dailySales = dailyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
     const dailyAvgSpend = dailyCustomers > 0 ? Math.round(dailySales / dailyCustomers) : 0;
 
@@ -52,11 +53,12 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
             id: true,
             totalPrice: true,
             isComboMain: true,
+            comboLinkId: true,
             menuName: true
         }
     });
 
-    const monthlyCustomers = monthlyBookings.length;
+    const monthlyCustomers = monthlyBookings.filter(b => !b.comboLinkId || b.isComboMain).length;
     const monthlySales = monthlyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
     // 4. Calculate Top 5 Services for the Month
