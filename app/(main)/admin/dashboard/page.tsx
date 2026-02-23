@@ -33,16 +33,17 @@ export default async function DashboardPage() {
     
     monthlyData.forEach(row => {
         monthlySales += Number(row.totalPrice || row.total_price || row.sales || row.sum || 0);
-        monthlyCustomers += Number(row.customers || row.count || row.来店数 || 1);
+        monthlyCustomers += Number(row.monthly_guest_count || row.customers || row.count || row.来店数 || 1);
     });
-    if (monthlySales === 0 && monthlyData.length <= 1 && !monthlyData[0]?.count && !monthlyData[0]?.customers) {
+    if (monthlySales === 0 && monthlyData.length <= 1 && !monthlyData[0]?.count && !monthlyData[0]?.customers && !monthlyData[0]?.monthly_guest_count) {
         monthlyCustomers = 0;
     }
 
     // 3. Ranking Format
-    // Format the ranking array. We expect rows with menuName and totalPrice (or sum).
+    // Format the ranking array. We expect rows with menuName, totalPrice (or sum), and a count column.
     const topServices = rankingData.map((row) => ({
         name: String(row.menuName || row.menu_name || row.menu || 'Unknown'),
+        count: Number(row.count || row.service_count || row.providing_count || row.total_count || row.usage_count || 1),
         sales: Number(row.totalPrice || row.total_price || row.sales || row.sum || 0)
     })).sort((a, b) => b.sales - a.sales).slice(0, 5); // Ensure top 5
 
@@ -161,25 +162,32 @@ export default async function DashboardPage() {
                             </div>
                         ) : (
                             topServices.map((service, idx) => (
-                                <div key={service.name + idx} className="flex items-center gap-4 p-3 rounded-xl bg-slate-950/50 border border-slate-800/30 hover:border-amber-500/20 transition-colors">
+                                <div key={service.name + idx} className="flex items-center gap-3 md:gap-4 p-3 rounded-xl bg-slate-950/50 border border-slate-800/30 hover:border-amber-500/20 transition-colors">
                                     {/* Rank Badge */}
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-lg
+                                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm md:text-lg
                                         ${idx === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-[0_0_10px_rgba(251,191,36,0.2)]' : 
-                                        idx === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500 text-slate-900' : 
-                                        idx === 2 ? 'bg-gradient-to-br from-amber-700 to-yellow-900 text-amber-100' : 
-                                        'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                                        {idx === 0 ? <Crown className="w-5 h-5" /> : `#${idx + 1}`}
+                                            idx === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500 text-slate-900' : 
+                                                idx === 2 ? 'bg-gradient-to-br from-amber-700 to-yellow-900 text-amber-100' : 
+                                                    'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                                        {idx === 0 ? <Crown className="w-4 h-4 md:w-5 md:h-5" /> : `#${idx + 1}`}
                                     </div>
                                     
                                     {/* Service Name */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm md:text-base font-semibold text-slate-200 truncate pr-2">
+                                    <div className="flex-1 min-w-0 pr-2">
+                                        <p className="text-sm md:text-base font-semibold text-slate-200 truncate">
                                             {service.name}
                                         </p>
                                     </div>
 
-                                    {/* Revenue */}
+                                    {/* Usage Count */}
                                     <div className="text-right shrink-0">
+                                        <p className="text-xs md:text-sm text-slate-400">
+                                            <span className="font-bold text-slate-300">{service.count}</span>回
+                                        </p>
+                                    </div>
+
+                                    {/* Revenue */}
+                                    <div className="text-right shrink-0 min-w-[100px] md:min-w-[120px]">
                                         <p className="text-sm md:text-base font-mono font-bold text-amber-400">
                                             {formatVND(service.sales)}
                                         </p>
