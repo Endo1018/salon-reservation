@@ -14,11 +14,11 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
     // 1. Calculate "Today" in UTC+7 (Vietnam Time)
     const nowUtc = new Date();
     const vnTime = new Date(nowUtc.getTime() + 7 * 60 * 60 * 1000);
-    
+
     // Start and End of today in VN local time conceptually
     const startOfTodayVN = new Date(Date.UTC(vnTime.getUTCFullYear(), vnTime.getUTCMonth(), vnTime.getUTCDate(), 0, 0, 0));
     const endOfTodayVN = new Date(Date.UTC(vnTime.getUTCFullYear(), vnTime.getUTCMonth(), vnTime.getUTCDate(), 23, 59, 59, 999));
-    
+
     // Convert VN day bounds to UTC to query DB cleanly
     const startOfTodayUTC = new Date(startOfTodayVN.getTime() - 7 * 60 * 60 * 1000);
     const endOfTodayUTC = new Date(endOfTodayVN.getTime() - 7 * 60 * 60 * 1000);
@@ -37,8 +37,8 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
         }
     });
 
-    // We count actual customer groups. Assuming isComboMain=false means it's a sub-booking, so we only count main/standalone.
-    const dailyCustomers = dailyBookings.filter(b => b.isComboMain !== false).length;
+    // We count all bookings as individual customers/services provided based on user request.
+    const dailyCustomers = dailyBookings.length;
     const dailySales = dailyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
     const dailyAvgSpend = dailyCustomers > 0 ? Math.round(dailySales / dailyCustomers) : 0;
 
@@ -56,19 +56,23 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
         }
     });
 
-    const monthlyCustomers = monthlyBookings.filter(b => b.isComboMain !== false).length;
+    const monthlyCustomers = monthlyBookings.length;
     const monthlySales = monthlyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
     // 4. Calculate Top 5 Services for the Month
-    const serviceSales: Record<string, number> = {};
+    const serviceStats: Record<string, { sales: number; count: number }> = {};
     monthlyBookings.forEach(b => {
         if (!b.menuName) return;
-        if (!serviceSales[b.menuName]) serviceSales[b.menuName] = 0;
-        serviceSales[b.menuName] += (b.totalPrice || 0);
+        if (!serviceStats[b.menuName]) {
+            serviceStats[b.menuName] = { sales: 0, count: 0 };
+        }
+        serviceStats[b.menuName].sales += (b.totalPrice || 0);
+        serviceStats[b.menuName].count += 1;
     });
 
-    const topServices = Object.entries(serviceSales)
-        .sort((a, b) => b[1] - a[1])
+    const topServices = Object.entries(serviceStats)
+        .map(([name, stats]) => ({ name, ...stats }))
+        .sort((a, b) => b.sales - a.sales)
         .slice(0, 5);
 
     // Formatter
@@ -144,19 +148,24 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {topServices.map(([name, sales], idx) => (
-                                <div key={name} className="flex justify-between items-center group">
+                            {topServices.map((service, idx) => (
+                                <div key={service.name} className="flex justify-between items-center group">
                                     <div className="flex items-center gap-3 overflow-hidden">
                                         <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold shrink-0 ${idx === 0 ? 'bg-amber-500 text-amber-950' : idx === 1 ? 'bg-slate-300 text-slate-800' : idx === 2 ? 'bg-amber-700 text-amber-100' : 'bg-slate-700 text-slate-300'}`}>
                                             {idx + 1}
                                         </div>
-                                        <p className="text-sm text-slate-200 truncate group-hover:text-white transition-colors" title={name}>
-                                            {name}
+                                        <p className="text-sm text-slate-200 truncate group-hover:text-white transition-colors" title={service.name}>
+                                            {service.name}
                                         </p>
                                     </div>
-                                    <p className="text-sm font-mono text-slate-400 shrink-0 ml-4">
-                                        {formatJPY(sales)}
-                                    </p>
+                                    <div className="flex items-center shrink-0 ml-4 gap-4">
+                                        <p className="text-sm text-slate-500">
+                                            <span className="font-bold text-slate-300">{service.count}</span> 回
+                                        </p>
+                                        <p className="text-sm font-mono text-slate-400 min-w-[80px] text-right">
+                                            {formatJPY(service.sales)}
+                                        </p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
