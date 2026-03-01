@@ -9,6 +9,7 @@ type Rec = {
     id: number;
     date: string; // Formatted String
     staff: { name: string };
+    staffRole: string; // 'THERAPIST' | 'RECEPTION' etc.
     start: string | null;
     end: string | null;
     workHours: number;
@@ -74,7 +75,7 @@ const applyRounding = (start: string | null, end: string | null) => {
 };
 
 // Helper for dynamic Late/Early Calc
-const calcLateEarly = (attStart: string, attEnd: string, shiftStart: string | null, shiftEnd: string | null, breakTime: number = 1.0) => {
+const calcLateEarly = (attStart: string, attEnd: string, shiftStart: string | null, shiftEnd: string | null, breakTime: number = 1.0, staffRole: string = 'THERAPIST') => {
     // 1. Normalize Shift (to avoid 12:47 vs 13:00 issues)
     if (!attStart || !shiftStart || !attEnd) return { late: 0, early: 0 };
 
@@ -99,8 +100,18 @@ const calcLateEarly = (attStart: string, attEnd: string, shiftStart: string | nu
     const effEnd = parse(rEnd);
 
     // 3. Calc Late
-    // Late if Effective Start > Standard Shift Start
-    const late = Math.max(0, effStart - stdShiftStart);
+    // Business Rule: Therapists (non-RECEPTION) arriving before 13:00 are
+    // coming for bookings only, not their regular shift — no late penalty.
+    let late = 0;
+    const isTherapist = staffRole !== 'RECEPTION';
+    const shiftBefore13 = stdShiftStart < 13 * 60;
+
+    if (isTherapist && shiftBefore13) {
+        late = 0;
+    } else {
+        // Late if Effective Start > Standard Shift Start
+        late = Math.max(0, effStart - stdShiftStart);
+    }
 
     // 4. Calc Early
     // Early if Work Hours < 8.0
@@ -190,7 +201,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
             rec.end ? rec.end.slice(0, 5) : '',
             rec.shiftStart,
             rec.shiftEnd,
-            rec.breakTime
+            rec.breakTime,
+            rec.staffRole
         );
         setNewEarly(formatDecimalToTime(early / 60));
     };
@@ -239,7 +251,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
         let calculatedLate = 0;
 
         if (rec) {
-            const { late } = calcLateEarly(newStart, newEnd, rec.shiftStart, rec.shiftEnd, Number(newBreakTime));
+            const { late } = calcLateEarly(newStart, newEnd, rec.shiftStart, rec.shiftEnd, Number(newBreakTime), rec.staffRole);
             calculatedLate = late;
         }
 
@@ -300,7 +312,8 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                             isEditing ? newEnd : (rec.end ? rec.end.slice(0, 5) : ''),
                             rec.shiftStart,
                             rec.shiftEnd,
-                            isEditing ? Number(newBreakTime) : rec.breakTime
+                            isEditing ? Number(newBreakTime) : rec.breakTime,
+                            rec.staffRole
                         );
 
                         // Determine what to show for Late
@@ -497,7 +510,7 @@ export default function AttendanceTable({ initialData }: { initialData: Rec[] })
                 onClose={closeDeleteConfirm}
                 onConfirm={executeDelete}
                 title="勤怠記録を削除"
-                message="この勤怠記録を削除してもよろしいですか？&#10;(Are you sure?)"
+                message={"\u3053\u306e\u52e4\u6020\u8a18\u9332\u3092\u524a\u9664\u3057\u3066\u3082\u3088\u308d\u3057\u3044\u3067\u3059\u304b\uff1f\n(Are you sure?)"}
                 confirmText="削除"
                 cancelText="キャンセル"
                 isDestructive={true}
