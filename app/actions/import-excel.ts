@@ -47,7 +47,15 @@ export async function importAttendanceFromExcel(formData: FormData) {
             }
         }
 
-        const year = 2026;
+        // Dynamically determine year from date columns (DD/MM/YYYY) or fallback to current year
+        let year = new Date().getFullYear();
+        for (const { dateStr } of dateCols) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3 && parts[2]?.length === 4) {
+                year = parseInt(parts[2]);
+                break;
+            }
+        }
 
         const validStaffIds = new Set<string>();
 
