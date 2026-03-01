@@ -140,7 +140,16 @@ export default async function AttendancePage({
             const sEnd = parseTime(shift.end);
             const aEnd = parseTime(record.end);
 
-            lateMins = Math.max(0, aStart - sStart);
+            // Business Rule: Therapists (non-RECEPTION) arriving before 13:00 are
+            // coming for bookings only, not their regular shift — no late penalty.
+            const isTherapist = record.staff?.role !== 'RECEPTION';
+            const shiftBefore13 = sStart < 13 * 60; // 780 min = 13:00
+
+            if (isTherapist && shiftBefore13) {
+                lateMins = 0;
+            } else {
+                lateMins = Math.max(0, aStart - sStart);
+            }
             earlyMins = Math.max(0, sEnd - aEnd);
         }
 
@@ -150,6 +159,7 @@ export default async function AttendancePage({
             staff: {
                 name: record.staff.name
             },
+            staffRole: record.staff.role || 'THERAPIST',
             breakTime: record.breakTime ?? 1.0,
             overtime: record.overtime || 0,
             isOvertime: record.isOvertime || false,
@@ -157,7 +167,7 @@ export default async function AttendancePage({
             earlyMins,
             shiftStart: shift?.start || null,
             shiftEnd: shift?.end || null,
-            lateTimeOverride: record.lateTimeOverride || null
+            lateTimeOverride: record.lateTimeOverride ?? null
         };
     });
 
