@@ -6,7 +6,7 @@ import { syncBookingsFromGoogleSheets } from '@/app/actions/sync-google';
 import { publishDrafts } from '@/app/actions/publish-draft';
 import { updateDraft } from '@/app/actions/update-draft';
 import { deleteDraft } from '@/app/actions/delete-draft';
-import { clearFebruaryData } from '@/app/actions/debug-tools';
+import { clearMonthData } from '@/app/actions/debug-tools';
 import { toast } from 'sonner';
 import { RefreshCcw, Check, AlertTriangle, Lock, Trash2, Edit } from 'lucide-react';
 import TimelineNav from '../timeline/components/TimelineNav';
@@ -161,13 +161,13 @@ export default function ImportListPage() {
         );
     };
 
-    const handleClearFeb = () => {
+    const handleClearMonth = () => {
         openConfirm(
             'Clear Data',
-            '2026年2月の全データを強制削除しますか？\n(ドラフト・確定予約すべて削除されます)',
+            `${year}年${month}月の全データを強制削除しますか？\n(ドラフト・確定予約すべて削除されます)`,
             async () => {
                 closeConfirm();
-                const res = await clearFebruaryData();
+                const res = await clearMonthData(year, month);
                 if (res.success) {
                     toast.success(`Deleted ${res.count} records.`);
                     await loadData();
@@ -325,9 +325,18 @@ export default function ImportListPage() {
                                 }}
                                 className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm"
                             >
-                                <option value="2026-01">2026年01月</option>
-                                <option value="2026-02">2026年02月</option>
-                                <option value="2026-03">2026年03月</option>
+                                {(() => {
+                                    const options = [];
+                                    const now = new Date();
+                                    for (let offset = -6; offset <= 2; offset++) {
+                                        const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+                                        const y = d.getFullYear();
+                                        const m = d.getMonth() + 1;
+                                        const val = `${y}-${String(m).padStart(2, '0')}`;
+                                        options.push(<option key={val} value={val}>{y}年{String(m).padStart(2, '0')}月</option>);
+                                    }
+                                    return options;
+                                })()}
                             </select>
                         </div>
 
@@ -376,8 +385,8 @@ export default function ImportListPage() {
                             </div>
                         )}
                         {!rows.some(r => r.status === 'SYNC_DRAFT') && <div className="flex-1"></div>}
-                        <button onClick={handleClearFeb} className="px-3 py-1 bg-red-900/50 hover:bg-red-800 text-red-200 text-xs rounded border border-red-800 whitespace-nowrap">
-                            ⚠️ Clear Feb 2026
+                        <button onClick={handleClearMonth} className="px-3 py-1 bg-red-900/50 hover:bg-red-800 text-red-200 text-xs rounded border border-red-800 whitespace-nowrap">
+                            ⚠️ Clear {year}/{month}
                         </button>
                     </div>
                 </header>
