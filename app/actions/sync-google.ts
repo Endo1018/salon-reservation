@@ -49,7 +49,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         const sheets = google.sheets({ version: 'v4', auth });
 
         // 1. Determine Target Month
-        // Use Vietnam Time (UTC+7) for default \"Today\" to handle month roll-overs correctly
+        // Use Vietnam Time (UTC+7) for default "Today" to handle month roll-overs correctly
         const nowUTC = new Date();
         const vietnamNow = new Date(nowUTC.getTime() + (7 * 60 * 60 * 1000));
 
@@ -58,7 +58,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
         // Use getUTCMonth/FullYear because we manually shifted the time reference
         // If targetDateStr is passed, it is likely YYYY-MM-DD, parsing it as UTC or Local depends on string.
-        // Assuming targetDateStr is \"YYYY-MM-DD\", new Date() treats it as UTC usually? No, \"YYYY-MM-DD\" is UTC.
+        // Assuming targetDateStr is "YYYY-MM-DD", new Date() treats it as UTC usually? No, "YYYY-MM-DD" is UTC.
         // Let's stick to simple extraction.
 
         let month, year;
@@ -71,9 +71,9 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             year = vietnamNow.getUTCFullYear();
         }
 
-        // Regex to match \"Tháng_1_2026\", \"Tháng 01_2026\", \"01_2026\", \"1_2026\", etc.
-        // Matches: (Optional \"Tháng\" + space/underscore) + (1 or 01) + (space/underscore) + 2026
-        // Note: Vietnamese 'á' might be involved but usually \"Thang\" or \"Tháng\".
+        // Regex to match "Tháng_1_2026", "Tháng 01_2026", "01_2026", "1_2026", etc.
+        // Matches: (Optional "Tháng" + space/underscore) + (1 or 01) + (space/underscore) + 2026
+        // Note: Vietnamese 'á' might be involved but usually "Thang" or "Tháng".
         const monthRegex = new RegExp(`^(?:Th[aá]ng[ _]?)?0?${month}[_ ]${year}$`, 'i');
 
         console.log(`[Sync] Looking for sheet matching: Month ${month}, Year ${year} (Deployment Trigger V3)`);
@@ -103,7 +103,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 return { success: false, message: `Sheet for ${month}/${year} not found. Available: ${tabs.slice(0, 5).join(', ')}...` };
             }
 
-            console.log(`[Sync] Found target sheet: \"${sheetName}\"`);
+            console.log(`[Sync] Found target sheet: "${sheetName}"`);
 
         } catch (error: any) {
             console.error(`Error fetching metadata:`, error.message);
@@ -120,7 +120,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             });
             rows = response.data.values || [];
         } catch (error: any) {
-            console.error(`Error fetching rows from \"${sheetName}\":`, error.message);
+            console.error(`Error fetching rows from "${sheetName}":`, error.message);
             return { success: false, message: `Error reading rows: ${error.message}` };
         }
 
@@ -129,7 +129,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         }
 
         // 3. Prepare DB Data
-        // Ensure \"Other\" staff exists for manual selection
+        // Ensure "Other" staff exists for manual selection
         const otherStaff = await prisma.staff.findUnique({ where: { id: 'other' } });
         if (!otherStaff) {
             await prisma.staff.create({
@@ -141,12 +141,12 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                     isActive: true
                 }
             });
-            console.log(\"[Sync] Created 'Other' staff.\");
+            console.log("[Sync] Created 'Other' staff.");
         }
 
         const staffList = await prisma.staff.findMany();
         const serviceList = await prisma.service.findMany();
-        const normalizeName = (n: string) => (n || '').replace(/\\u00a0/g, ' ').trim().toLowerCase();
+        const normalizeName = (n: string) => (n || '').replace(/\u00a0/g, ' ').trim().toLowerCase();
         const staffMap = new Map<string, Staff>(staffList.map((s) => [normalizeName(s.name), s]));
         const serviceMap = new Map<string, Service>(serviceList.map((s) => [normalizeName(s.name), s]));
 
@@ -155,13 +155,13 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0 - 7, 0, 0));
         const endOfMonth = new Date(Date.UTC(year, month, 1, 0 - 7, 0, 0));
 
-        // Explicitly sync the full month as requested (overriding any \"yesterday\" restrictions)
+        // Explicitly sync the full month as requested (overriding any "yesterday" restrictions)
         const syncStart = startOfMonth; 
 
         console.log(`[Sync] Scope: ${syncStart.toISOString()} to ${endOfMonth.toISOString()} (Full Month Mode)`);
 
         // --- SAVE SYNC METADATA ---
-        // We store the syncStart date so the \"Publish\" action knows where to start replacing data.
+        // We store the syncStart date so the "Publish" action knows where to start replacing data.
         // Stored as a special BookingMemo on the 1st of the month.
         const metaDate = new Date(Date.UTC(year, month - 1, 1)); // 1st
         console.log(`[Sync] Saving metadata for date: ${metaDate.toISOString()}`);
@@ -287,7 +287,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 }
 
                 if (!parsedDate || isNaN(parsedDate.getTime())) {
-                    console.log(`[Sync] Skipped Row (Invalid Date Format): \"${dateStr}\"`);
+                    console.log(`[Sync] Skipped Row (Invalid Date Format): "${dateStr}"`);
                     skippedDateCount++;
                     continue;
                 }
@@ -295,7 +295,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 // --- TIME PARSE ---
                 const timeMatch = timeStr.match(/(\d+)[:.](\d+)\s*(AM|PM)?/i);
                 if (!timeMatch) {
-                    console.log(`[Sync] Skipped Row (Invalid Time Format): \"${timeStr}\"`);
+                    console.log(`[Sync] Skipped Row (Invalid Time Format): "${timeStr}"`);
                     continue;
                 }
 
@@ -510,7 +510,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
                     successCount++;
                 } else {
-                    console.log(`[Sync] Skipped Row (Service Not Found): \"${svcName1}\" | Client: ${clientName} | Date: ${dateStr}`);
+                    console.log(`[Sync] Skipped Row (Service Not Found): "${svcName1}" | Client: ${clientName} | Date: ${dateStr}`);
                     errorCount++;
                     if (svcName1 && !missingServices.includes(svcName1)) {
                         missingServices.push(svcName1);
@@ -526,10 +526,10 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
         let memoError = ''; // Track specific errors for user feedback
         let memoCount = 0;
         try {
-            console.log(\"[Sync] Fetching 'Booking' sheet for memos...\");
+            console.log("[Sync] Fetching 'Booking' sheet for memos...");
             const memoResponse = await sheets.spreadsheets.values.get({
                 spreadsheetId: SHEET_ID,
-                range: \"'Booking'!A6:I\", // Data finds up to Col I
+                range: "'Booking'!A6:I", // Data finds up to Col I
             });
             const memoRows = memoResponse.data.values || [];
             console.log(`[Sync] Found ${memoRows.length} rows in Booking sheet.`);
@@ -608,7 +608,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             console.log(`[Sync] Synced ${memoCount} Booking Memos for ${month}/${year}.`);
 
         } catch (error: any) {
-            console.error(\"[Sync] Error syncing Booking Memos:\", error.message);
+            console.error("[Sync] Error syncing Booking Memos:", error.message);
             memoError = error.message;
         }
 
