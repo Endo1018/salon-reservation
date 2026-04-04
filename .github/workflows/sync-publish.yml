@@ -1,0 +1,28 @@
+name: CHAMPACA Sync & Publish
+
+on:
+  schedule:
+    - cron: "0 1 * * *"   # 01:00 UTC = 08:00 HCM
+    - cron: "0 11 * * *"  # 11:00 UTC = 18:00 HCM
+  workflow_dispatch:       # 手動実行
+
+jobs:
+  sync-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync & Publish
+        run: |
+          echo "Target: ${{ secrets.WEBAPP_URL }}/api/cron/sync-publish"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.WEBAPP_URL }}/api/cron/sync-publish" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          HTTP_BODY=$(echo "$RESPONSE" | head -n -1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+          echo "Status: $HTTP_CODE"
+          echo "Response: $HTTP_BODY"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Failed with status $HTTP_CODE"
+            exit 1
+          fi
+          echo "✅ Sync & Publish completed"
