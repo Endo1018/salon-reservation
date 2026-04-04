@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x", "rhel-openssl-1.0.x"]
 }
 
@@ -8,58 +8,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Staff {
-  id                     String              @id
-  name                   String
-  role                   String
-  baseWage               Int
-  commissionRate         Int                 @default(0)
-  incentiveRate          Int                 @default(0)
-  isActive               Boolean             @default(true)
-  endDate                DateTime?           // Staff departure date (null = still active)
-  dependents             Int                 @default(0)
-  allowanceCommute       Int                 @default(0)
-  allowanceMeal          Int                 @default(0)
-  allowanceOther         Int                 @default(0)
-  allowancePosition      Int                 @default(0)
-  allowanceCommunication Int                 @default(0)
-  allowanceHousing       Int                 @default(0)
-  allowanceLanguage      Int                 @default(0)
-  insuranceBaseSalary    Int                 @default(0)
-  attendance             Attendance[]
-  bookings               Booking[]
-  adjustments            PayrollAdjustment[]
-  shifts                 Shift[]
-}
-
-model Shift {
-  id      Int      @id @default(autoincrement())
-  staffId String
-  date    DateTime
-  status  String
-  start   String?
-  end     String?
-  staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@unique([staffId, date])
-}
-
 model Attendance {
-  id          Int      @id @default(autoincrement())
-  staffId     String
-  date        DateTime
-  start       String?
-  end         String?
-  workHours   Float    @default(0)
-  perfHours   Float    @default(0)
-  perfReviews Int      @default(0)
+  id               Int      @id @default(autoincrement())
+  staffId          String
+  date             DateTime
+  start            String?
+  end              String?
+  workHours        Float    @default(0)
+  perfHours        Float    @default(0)
+  perfReviews      Int      @default(0)
+  status           String
+  breakTime        Float    @default(1.0)
+  isOvertime       Boolean  @default(false)
+  overtime         Float    @default(0)
+  isManual         Boolean  @default(false)
+  lateTimeOverride Int?
+  Staff            Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id          String    @id
+  menuId      String
+  menuName    String
+  staffId     String?
+  startAt     DateTime
+  endAt       DateTime
+  resourceId  String
   status      String
-  breakTime   Float    @default(1.0)
-  isOvertime  Boolean  @default(false)
-  overtime    Float    @default(0)
-  lateTimeOverride Int? // Manual override for late minutes (null = auto-calc)
-  isManual    Boolean  @default(false)
-  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  clientName  String?
+  comboLinkId String?
+  isComboMain Boolean   @default(false)
+  customerId  String?
+  isLocked    Boolean   @default(false)
+  totalPrice  Int       @default(0)
+  Customer    Customer? @relation(fields: [customerId], references: [id])
+  Service     Service   @relation(fields: [menuId], references: [id])
+  Staff       Staff?    @relation(fields: [staffId], references: [id])
+}
+
+model BookingInquiry {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  inquiryDate DateTime  @db.Timestamp(6)
+  channel     String
+  clientName  String?
+  persons     Int       @default(1)
+  bookingDate DateTime? @db.Timestamp(6)
+  bookingTime String?
+  memo        String?
+  hasCome     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([channel], map: "idx_bi_channel")
+  @@index([inquiryDate], map: "idx_bi_date")
+}
+
+model BookingMemo {
+  id        String   @id
+  date      DateTime
+  time      String
+  persons   Int
+  content   String
+  createdAt DateTime @default(now())
+  hasCome   Boolean  @default(false)
+
+  @@index([date])
+}
+
+model Customer {
+  id      String    @id
+  name    String
+  phone   String?
+  email   String?
+  notes   String?
+  Booking Booking[]
 }
 
 model PayrollAdjustment {
@@ -72,7 +93,6 @@ model PayrollAdjustment {
   bonus                  Int     @default(0)
   deduction              Int     @default(0)
   notes                  String?
-  isConfirmed            Boolean @default(false)
   allowanceCommute       Int     @default(0)
   allowanceMeal          Int     @default(0)
   allowanceOther         Int     @default(0)
@@ -82,22 +102,14 @@ model PayrollAdjustment {
   allowanceCommunication Int     @default(0)
   allowanceHousing       Int     @default(0)
   allowanceLanguage      Int     @default(0)
-  staff                  Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  isConfirmed            Boolean @default(false)
+  Staff                  Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, year, month])
 }
 
-model Customer {
-  id       String    @id @default(uuid())
-  name     String
-  phone    String?
-  email    String?
-  notes    String?
-  bookings Booking[]
-}
-
 model Service {
-  id              String    @id @default(uuid())
+  id              String    @id
   name            String
   duration        Int
   price           Int
@@ -108,37 +120,75 @@ model Service {
   commission      Int       @default(0)
   headSpaDuration Int       @default(0)
   massageDuration Int       @default(0)
-  bookings        Booking[]
+  Booking         Booking[]
 }
 
-model Booking {
-  id          String    @id @default(uuid())
-  menuId      String
-  menuName    String
-  staffId     String?
-  startAt     DateTime
-  endAt       DateTime
-  resourceId  String
-  status      String
-  clientName  String?
-  comboLinkId String?
-  isComboMain Boolean   @default(false)
-  isLocked    Boolean   @default(false) // Protect from sync overwrites
-  totalPrice  Int       @default(0)
-  customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  service     Service   @relation(fields: [menuId], references: [id])
-  staff       Staff?    @relation(fields: [staffId], references: [id], onUpdate: Cascade)
+model Shift {
+  id      Int      @id @default(autoincrement())
+  staffId String
+  date    DateTime
+  status  String
+  start   String?
+  end     String?
+  Staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
 }
 
-model BookingMemo {
-  id        String   @id @default(uuid())
-  date      DateTime
-  time      String
-  persons   Int
-  content   String
-  hasCome   Boolean  @default(false)
-  createdAt DateTime @default(now())
+model Staff {
+  id                     String              @id
+  name                   String
+  role                   String
+  baseWage               Int
+  commissionRate         Int                 @default(0)
+  incentiveRate          Int                 @default(0)
+  isActive               Boolean             @default(true)
+  dependents             Int                 @default(0)
+  allowanceCommute       Int                 @default(0)
+  allowanceMeal          Int                 @default(0)
+  allowanceOther         Int                 @default(0)
+  allowancePosition      Int                 @default(0)
+  allowanceCommunication Int                 @default(0)
+  allowanceHousing       Int                 @default(0)
+  allowanceLanguage      Int                 @default(0)
+  insuranceBaseSalary    Int                 @default(0)
+  endDate                DateTime?
+  Attendance             Attendance[]
+  Booking                Booking[]
+  PayrollAdjustment      PayrollAdjustment[]
+  Shift                  Shift[]
+}
 
-  @@index([date])
+model posts {
+  id          Int         @id @default(autoincrement())
+  content     String
+  platform    String      @default("threads")
+  status      post_status @default(DRAFT)
+  error_log   String?
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime    @default(now()) @db.Timestamptz(6)
+  threads_id  String?
+  linkedin_id String?
+  impressions Int         @default(0)
+  likes       Int         @default(0)
+  reposts     Int         @default(0)
+  comments    Int         @default(0)
+  api_cost    String      @default("0")
+}
+
+model timeline_events {
+  id         String   @id
+  date       String
+  event_type String
+  title      String
+  body       String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+enum post_status {
+  DRAFT
+  APPROVED
+  POSTING
+  SUCCESS
+  FAILED
 }

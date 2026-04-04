@@ -79,6 +79,7 @@ export default function Sidebar() {
                         { name: 'Shifts', href: '/admin/shifts', icon: 'calendar' },
                         { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
                         { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
+                        { name: '集計', href: '/admin/analytics', icon: 'chart' },
                     ] : staffMenu).map((item) => {
                         // const isActive = pathname === item.href && item.href !== '/admin/timeline'; // Removed unused
                         // Actually, Dashboard is /admin, so exact match prevents highlighting on subpages usually.
@@ -107,6 +108,7 @@ export default function Sidebar() {
                                     {item.icon === 'calendar' && '▦'}
                                     {item.icon === 'clock' && '◔'}
                                     {item.icon === 'money' && '$'}
+                                    {item.icon === 'chart' && '📊'}
                                     {item.icon === 'book' && '📖'}
                                     {item.icon === 'user' && '☃'}
                                 </span>
