@@ -826,10 +826,7 @@ export async function getMonthlyStaffSummary(year: number, month: number) {
     const staffList = await prisma.staff.findMany({
         where: {
             role: { in: ['Therapist', 'THERAPIST', 'therapist'] },
-            OR: [
-                { endDate: null },
-                { endDate: { gte: startOfMonth } } // Include if ended on or after 1st of month
-            ]
+            isActive: true,
         }
     });
 
