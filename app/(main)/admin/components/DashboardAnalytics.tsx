@@ -49,6 +49,10 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
         console.error('[DashboardAnalytics] DB error:', e);
     }
 
+    const dailyCustomers = dailyBookings.filter(b => !b.comboLinkId || b.isComboMain).length;
+    const dailySales = dailyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    const dailyAvgSpend = dailyCustomers > 0 ? Math.round(dailySales / dailyCustomers) : 0;
+
     const monthlyCustomers = monthlyBookings.filter(b => !b.comboLinkId || b.isComboMain).length;
     const monthlySales = monthlyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
