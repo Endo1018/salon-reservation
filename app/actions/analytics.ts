@@ -149,6 +149,113 @@ export async function getChannelStats(months = 6) {
     }));
 }
 
+// ── スタッフ別施術件数（月次）──────────────────────────────────────────
+export async function getStaffPerformance(year: number, month: number) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate   = new Date(year, month, 1);
+
+    const bookings = await prisma.$queryRaw<{
+        staffId: string;
+        staffName: string;
+        count: bigint;
+    }[]>`
+        SELECT
+            s.id                      AS "staffId",
+            s.name                    AS "staffName",
+            COUNT(b.id)::bigint       AS count
+        FROM "Staff" s
+        LEFT JOIN "Booking" b
+            ON b."staffId" = s.id
+           AND b."startAt" >= ${startDate}
+           AND b."startAt" <  ${endDate}
+           AND b.status NOT IN ('Cancelled', 'SYNC_DRAFT', 'NoShow')
+        WHERE (
+            s."isActive" = true
+            OR (s."isActive" = false AND s."endDate" IS NOT NULL AND s."endDate" >= ${startDate})
+        )
+        GROUP BY s.id, s.name
+        ORDER BY count DESC
+    `;
+
+    const adjustments = await prisma.payrollAdjustment.findMany({
+        where: { year, month },
+        select: { staffId: true, commission: true, incentive: true, bonus: true },
+    });
+    const adjMap = new Map(adjustments.map(a => [a.staffId, a]));
+
+    const attendance = await prisma.attendance.groupBy({
+        by: ['staffId'],
+        where: {
+            date: { gte: startDate, lt: endDate },
+        },
+        _sum: { workHours: true, overtime: true },
+    });
+    const attMap = new Map(attendance.map(a => [a.staffId, a._sum]));
+
+    return bookings.map(r => {
+        const adj = adjMap.get(r.staffId);
+        const att = attMap.get(r.staffId);
+        return {
+            staffId:    r.staffId,
+            staffName:  r.staffName,
+            count:      Number(r.count),
+            commission: (adj?.commission ?? 0) + (adj?.incentive ?? 0) + (adj?.bonus ?? 0),
+            workHours:  +(att?.workHours ?? 0).toFixed(1),
+            overtime:   +(att?.overtime  ?? 0).toFixed(1),
+        };
+    });
+}
+
+// ── 人件費サマリー（月次）─────────────────────────────────────────────
+export async function getLaborSummary(year: number, month: number) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate   = new Date(year, month, 1);
+
+    const staffList = await prisma.staff.findMany({
+        where: {
+            OR: [
+                { isActive: true },
+                { isActive: false, endDate: { not: null, gte: startDate } },
+            ],
+        },
+        select: {
+            id: true,
+            baseWage: true,
+            allowanceCommute: true,
+            allowanceMeal: true,
+            allowanceOther: true,
+            allowancePosition: true,
+            allowanceCommunication: true,
+            allowanceHousing: true,
+            allowanceLanguage: true,
+        },
+    });
+
+    const adjustments = await prisma.payrollAdjustment.findMany({
+        where: { year, month },
+    });
+    const adjMap = new Map(adjustments.map(a => [a.staffId, a]));
+
+    let totalLaborCost = 0;
+    for (const s of staffList) {
+        const adj = adjMap.get(s.id);
+        totalLaborCost +=
+            s.baseWage +
+            s.allowanceCommute + s.allowanceMeal + s.allowanceOther +
+            s.allowancePosition + s.allowanceCommunication +
+            s.allowanceHousing + s.allowanceLanguage +
+            (adj?.commission ?? 0) + (adj?.incentive ?? 0) +
+            (adj?.bonus ?? 0) + (adj?.allowanceCommute ?? 0) +
+            (adj?.allowanceMeal ?? 0) + (adj?.allowanceOther ?? 0) +
+            (adj?.allowancePosition ?? 0) + (adj?.allowanceCommunication ?? 0) +
+            (adj?.allowanceHousing ?? 0) + (adj?.allowanceLanguage ?? 0) +
+            (adj?.taxRefund ?? 0) -
+            (adj?.deduction ?? 0) - (adj?.fine ?? 0);
+    }
+
+    return { totalLaborCost, headCount: staffList.length };
+}
+
 // ── チャンネル × 月 トレンド ────────────────────────────────────────────
 export async function getChannelTrend(months = 6) {
     const since = new Date();

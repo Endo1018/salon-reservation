@@ -23,36 +23,32 @@ export default async function AdminPage({
     const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
     // Filter staff by endDate - exclude staff who left before this month
-    const allStaff = await prisma.staff.findMany({
-        where: {
-            isActive: true,
-            OR: [
-                { endDate: null },
-                { endDate: { gte: startOfMonth } }
-            ]
-        },
-        orderBy: { id: 'asc' }
-    });
+    let allStaff: Awaited<ReturnType<typeof prisma.staff.findMany>> = [];
+    let allShifts: Awaited<ReturnType<typeof prisma.shift.findMany>> = [];
+    let allAttendance: Awaited<ReturnType<typeof prisma.attendance.findMany>> = [];
 
-    // Fetch All Shifts (for Calendar and Summary)
-    const allShifts = await prisma.shift.findMany({
-        where: {
-            date: {
-                gte: startOfMonth,
-                lte: endOfMonth
-            }
-        }
-    });
-
-    // Fetch All Attendance (for Summary)
-    const allAttendance = await prisma.attendance.findMany({
-        where: {
-            date: {
-                gte: startOfMonth,
-                lte: endOfMonth
-            }
-        }
-    });
+    try {
+        [allStaff, allShifts, allAttendance] = await Promise.all([
+            prisma.staff.findMany({
+                where: {
+                    isActive: true,
+                    OR: [
+                        { endDate: null },
+                        { endDate: { gte: startOfMonth } }
+                    ]
+                },
+                orderBy: { id: 'asc' }
+            }),
+            prisma.shift.findMany({
+                where: { date: { gte: startOfMonth, lte: endOfMonth } }
+            }),
+            prisma.attendance.findMany({
+                where: { date: { gte: startOfMonth, lte: endOfMonth } }
+            }),
+        ]);
+    } catch (e) {
+        console.error('[AdminPage] DB error:', e);
+    }
 
     const offShifts = allShifts.filter(s => ['Off', 'AL'].includes(s.status));
 

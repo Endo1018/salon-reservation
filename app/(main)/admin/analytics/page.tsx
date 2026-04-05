@@ -7,13 +7,17 @@ import {
     getHeatmap,
     getCancelStats,
     getChannelStats,
+    getStaffPerformance,
+    getLaborSummary,
 } from '@/app/actions/analytics';
 
-type MonthlySummary = Awaited<ReturnType<typeof getMonthlySummary>>[number];
-type MenuRow        = { menu: string; count: bigint; revenue: bigint };
-type HeatmapRow     = { dow: number; hour: number; count: number };
-type CancelRow      = Awaited<ReturnType<typeof getCancelStats>>[number];
-type ChannelRow     = Awaited<ReturnType<typeof getChannelStats>>[number];
+type MonthlySummary  = Awaited<ReturnType<typeof getMonthlySummary>>[number];
+type MenuRow         = { menu: string; count: bigint; revenue: bigint };
+type HeatmapRow      = { dow: number; hour: number; count: number };
+type CancelRow       = Awaited<ReturnType<typeof getCancelStats>>[number];
+type ChannelRow      = Awaited<ReturnType<typeof getChannelStats>>[number];
+type StaffPerfRow    = Awaited<ReturnType<typeof getStaffPerformance>>[number];
+type LaborSummary    = Awaited<ReturnType<typeof getLaborSummary>>;
 
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 8); // 8〜21時
@@ -21,30 +25,39 @@ const fmt = (n: number) => n.toLocaleString();
 const fmtM = (n: number) => (n / 1_000_000).toFixed(1) + 'M';
 
 export default function AnalyticsPage() {
-    const [monthly,  setMonthly]  = useState<MonthlySummary[]>([]);
-    const [menus,    setMenus]    = useState<MenuRow[]>([]);
-    const [heatmap,  setHeatmap]  = useState<HeatmapRow[]>([]);
-    const [cancel,   setCancel]   = useState<CancelRow[]>([]);
-    const [channels, setChannels] = useState<ChannelRow[]>([]);
-    const [loading,  setLoading]  = useState(true);
-    const [period,   setPeriod]   = useState(6); // 表示月数
+    const today = new Date();
+    const [monthly,   setMonthly]   = useState<MonthlySummary[]>([]);
+    const [menus,     setMenus]     = useState<MenuRow[]>([]);
+    const [heatmap,   setHeatmap]   = useState<HeatmapRow[]>([]);
+    const [cancel,    setCancel]    = useState<CancelRow[]>([]);
+    const [channels,  setChannels]  = useState<ChannelRow[]>([]);
+    const [staffPerf, setStaffPerf] = useState<StaffPerfRow[]>([]);
+    const [labor,     setLabor]     = useState<LaborSummary | null>(null);
+    const [loading,   setLoading]   = useState(true);
+    const [period,    setPeriod]    = useState(6);
+    const [selYear,   setSelYear]   = useState(today.getFullYear());
+    const [selMonth,  setSelMonth]  = useState(today.getMonth() + 1);
 
     const load = useCallback(async () => {
         setLoading(true);
-        const [m, mn, hm, cs, ch] = await Promise.all([
+        const [m, mn, hm, cs, ch, sp, lb] = await Promise.all([
             getMonthlySummary(),
             getMenuRanking(period),
             getHeatmap(period),
             getCancelStats(period),
             getChannelStats(period),
+            getStaffPerformance(selYear, selMonth),
+            getLaborSummary(selYear, selMonth),
         ]);
         setMonthly(m);
         setMenus(mn as unknown as MenuRow[]);
         setHeatmap(hm);
         setCancel(cs);
         setChannels(ch);
+        setStaffPerf(sp);
+        setLabor(lb);
         setLoading(false);
-    }, [period]);
+    }, [period, selYear, selMonth]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -59,6 +72,23 @@ export default function AnalyticsPage() {
 
     // ── チャンネル最大値 ────────────────────────────────────────────────
     const maxCh  = Math.max(...channels.map(c => c.total), 1);
+
+    // ── 月次セレクタ用ヘルパー ──────────────────────────────────────────
+    function prevMonth() {
+        if (selMonth === 1) { setSelYear(y => y - 1); setSelMonth(12); }
+        else setSelMonth(m => m - 1);
+    }
+    function nextMonth() {
+        if (selMonth === 12) { setSelYear(y => y + 1); setSelMonth(1); }
+        else setSelMonth(m => m + 1);
+    }
+
+    // ── 人件費比率 ──────────────────────────────────────────────────────
+    const monthKey    = `${selYear}-${String(selMonth).padStart(2, '0')}`;
+    const selRevData  = monthly.find(r => r.month === monthKey);
+    const selRevenue  = selRevData?.revenue ?? 0;
+    const laborCost   = labor?.totalLaborCost ?? 0;
+    const laborRatio  = selRevenue > 0 ? (laborCost / selRevenue * 100) : 0;
 
     return (
         <div className="flex flex-col min-h-full bg-slate-950 text-slate-200 p-6 space-y-8">
@@ -250,6 +280,82 @@ export default function AnalyticsPage() {
                                         <td className="py-2 pr-4 text-right font-mono">{fmt(r.cancelled)}</td>
                                         <td className={`py-2 text-right font-mono ${r.cancelPct > 10 ? 'text-red-400' : 'text-slate-400'}`}>
                                             {r.cancelPct}%
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                {/* ── 5. スタッフ & 人件費（月次セレクタ付き）────────── */}
+                <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 space-y-6">
+                    {/* 月セレクタ */}
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                            スタッフ / 人件費
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <button onClick={prevMonth} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors">←</button>
+                            <span className="font-mono text-sm text-white min-w-[72px] text-center">
+                                {selYear}/{String(selMonth).padStart(2, '0')}
+                            </span>
+                            <button onClick={nextMonth} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors">→</button>
+                        </div>
+                    </div>
+
+                    {/* 人件費KPI */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-slate-800/50 rounded-lg p-3">
+                            <p className="text-xs text-slate-500 mb-1">月次人件費合計</p>
+                            <p className="text-lg font-mono font-bold text-cyan-400">
+                                ₫ {fmt(laborCost)}
+                            </p>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-lg p-3">
+                            <p className="text-xs text-slate-500 mb-1">スタッフ数</p>
+                            <p className="text-lg font-mono font-bold text-slate-200">
+                                {labor?.headCount ?? 0} 名
+                            </p>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-lg p-3">
+                            <p className="text-xs text-slate-500 mb-1">売上対人件費比率</p>
+                            <p className={`text-lg font-mono font-bold ${
+                                laborRatio > 60 ? 'text-red-400' :
+                                laborRatio > 0  ? 'text-emerald-400' : 'text-slate-500'
+                            }`}>
+                                {selRevenue > 0 ? `${laborRatio.toFixed(1)}%` : '—'}
+                            </p>
+                            {laborRatio > 60 && (
+                                <p className="text-xs text-red-400 mt-0.5">⚠ 高コスト</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* スタッフ別施術件数 */}
+                    <div>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">スタッフ別施術件数</p>
+                        <table className="w-full text-xs">
+                            <thead className="text-slate-600 border-b border-slate-800">
+                                <tr>
+                                    <th className="text-left py-2 pr-4">スタッフ</th>
+                                    <th className="text-right py-2 pr-4">施術件数</th>
+                                    <th className="text-right py-2 pr-4">稼働時間</th>
+                                    <th className="text-right py-2 pr-4">残業</th>
+                                    <th className="text-right py-2">コミッション等</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800">
+                                {staffPerf.length === 0 ? (
+                                    <tr><td colSpan={5} className="py-4 text-center text-slate-600">データなし</td></tr>
+                                ) : staffPerf.map(s => (
+                                    <tr key={s.staffId} className="hover:bg-slate-800/40">
+                                        <td className="py-2 pr-4 text-slate-200 font-medium">{s.staffName}</td>
+                                        <td className="py-2 pr-4 text-right font-mono text-slate-300">{s.count}</td>
+                                        <td className="py-2 pr-4 text-right font-mono text-slate-400">{s.workHours}h</td>
+                                        <td className="py-2 pr-4 text-right font-mono text-slate-500">{s.overtime}h</td>
+                                        <td className="py-2 text-right font-mono text-cyan-400">
+                                            {s.commission > 0 ? `₫ ${fmt(s.commission)}` : '—'}
                                         </td>
                                     </tr>
                                 ))}

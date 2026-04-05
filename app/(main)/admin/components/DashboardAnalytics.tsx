@@ -23,40 +23,31 @@ export default async function DashboardAnalytics({ year, month, startOfMonth, en
     const startOfTodayUTC = new Date(startOfTodayVN.getTime() - 7 * 60 * 60 * 1000);
     const endOfTodayUTC = new Date(endOfTodayVN.getTime() - 7 * 60 * 60 * 1000);
 
-    // 2. Fetch Daily Bookings
-    const dailyBookings = await prisma.booking.findMany({
-        where: {
-            startAt: { gte: startOfTodayUTC, lte: endOfTodayUTC },
-            status: { notIn: ['CANCELLED', 'SYNC_DRAFT'] }
-        },
-        select: {
-            id: true,
-            totalPrice: true,
-            isComboMain: true,
-            comboLinkId: true,
-            menuName: true
-        }
-    });
+    // 2. Fetch Daily & Monthly Bookings
+    type BookingRow = { id: string; totalPrice: number; isComboMain: boolean; comboLinkId: string | null; menuName: string | null };
+    let dailyBookings: BookingRow[] = [];
+    let monthlyBookings: BookingRow[] = [];
 
-    // Count unique visits: standalone bookings (!comboLinkId) + the main booking of a combo (isComboMain = true)
-    const dailyCustomers = dailyBookings.filter(b => !b.comboLinkId || b.isComboMain).length;
-    const dailySales = dailyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-    const dailyAvgSpend = dailyCustomers > 0 ? Math.round(dailySales / dailyCustomers) : 0;
-
-    // 3. Fetch Monthly Bookings
-    const monthlyBookings = await prisma.booking.findMany({
-        where: {
-            startAt: { gte: startOfMonth, lte: endOfMonth },
-            status: { notIn: ['CANCELLED', 'SYNC_DRAFT'] }
-        },
-        select: {
-            id: true,
-            totalPrice: true,
-            isComboMain: true,
-            comboLinkId: true,
-            menuName: true
-        }
-    });
+    try {
+        [dailyBookings, monthlyBookings] = await Promise.all([
+            prisma.booking.findMany({
+                where: {
+                    startAt: { gte: startOfTodayUTC, lte: endOfTodayUTC },
+                    status: { notIn: ['CANCELLED', 'SYNC_DRAFT'] }
+                },
+                select: { id: true, totalPrice: true, isComboMain: true, comboLinkId: true, menuName: true }
+            }),
+            prisma.booking.findMany({
+                where: {
+                    startAt: { gte: startOfMonth, lte: endOfMonth },
+                    status: { notIn: ['CANCELLED', 'SYNC_DRAFT'] }
+                },
+                select: { id: true, totalPrice: true, isComboMain: true, comboLinkId: true, menuName: true }
+            }),
+        ]);
+    } catch (e) {
+        console.error('[DashboardAnalytics] DB error:', e);
+    }
 
     const monthlyCustomers = monthlyBookings.filter(b => !b.comboLinkId || b.isComboMain).length;
     const monthlySales = monthlyBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);

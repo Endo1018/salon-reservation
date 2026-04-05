@@ -14,8 +14,6 @@ export default function Sidebar() {
         { name: 'Shifts', href: '/admin/shifts', icon: 'calendar' },
         { name: 'Attendance', href: '/admin/attendance', icon: 'clock' },
         { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
-        { name: 'Payroll', href: '/admin/payroll', icon: 'money' },
-        // Timeline moved to Priority Section
     ];
 
     const staffMenu = [
