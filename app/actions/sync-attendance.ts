@@ -31,7 +31,7 @@ export async function syncDailyStats(date: Date, staffId: string) {
             endAt: { lte: endOfDay },
             status: { not: 'Cancelled' }
         },
-        include: { service: true }
+        include: { Service: true }
     });
 
     // 3. Calculate Performance Hours (Treatment Time)
@@ -146,7 +146,7 @@ export async function syncAttendanceRange(year: number, month: number) {
                 endAt: { lte: rangeEnd },
                 status: { not: 'Cancelled' }
             },
-            include: { service: true }
+            include: { Service: true }
         }),
         prisma.shift.findMany({
             where: {

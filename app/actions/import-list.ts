@@ -60,7 +60,7 @@ export async function getImportListData(year: number, month: number) {
                 { status: 'Confirmed' }
             ]
         },
-        include: { staff: true, service: true },
+        include: { Staff: true, Service: true },
         orderBy: { startAt: 'asc' }
     });
 
@@ -93,8 +93,8 @@ export async function getImportListData(year: number, month: number) {
                 time1: (main.endAt.getTime() - main.startAt.getTime()) / 60000,
                 menu2: sub?.menuName || '',
                 time2: sub ? ((sub.endAt.getTime() - sub.startAt.getTime()) / 60000) : 0,
-                staff1: main.staff?.name || '',
-                staff2: sub?.staff?.name || '',
+                staff1: main.Staff?.name || '',
+                staff2: sub?.Staff?.name || '',
                 totalPrice: main.totalPrice || 0,
                 status: main.status,
                 isLocked: main.isLocked || (sub?.isLocked ?? false)
@@ -111,7 +111,7 @@ export async function getImportListData(year: number, month: number) {
                 time1: (booking.endAt.getTime() - booking.startAt.getTime()) / 60000,
                 menu2: '',
                 time2: 0,
-                staff1: booking.staff?.name || '',
+                staff1: booking.Staff?.name || '',
                 staff2: '',
                 totalPrice: booking.totalPrice || 0,
                 status: booking.status,

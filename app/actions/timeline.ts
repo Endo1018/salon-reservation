@@ -133,9 +133,9 @@ export async function getTimelineData(dateStr: string) {
             status: { not: 'SYNC_DRAFT' } // Hide drafts
         },
         include: {
-            staff: { select: { name: true } },
-            customer: { select: { name: true } },
-            service: { select: { name: true } }
+            Staff: { select: { name: true } },
+            Customer: { select: { name: true } },
+            Service: { select: { name: true } }
         }
     });
 
@@ -144,9 +144,9 @@ export async function getTimelineData(dateStr: string) {
         resourceId: b.resourceId,
         startAt: b.startAt,
         endAt: b.endAt,
-        clientName: b.customer?.name || b.clientName || 'Unknown',
-        menuName: b.service?.name || b.menuName || 'Unknown',
-        staffName: b.staff?.name || '?',
+        clientName: b.Customer?.name || b.clientName || 'Unknown',
+        menuName: b.Service?.name || b.menuName || 'Unknown',
+        staffName: b.Staff?.name || '?',
         status: b.status
     }));
 
@@ -343,7 +343,7 @@ export async function createBooking(data: {
 export async function getBooking(id: string) {
     const main = await prisma.booking.findUnique({
         where: { id },
-        include: { service: true }
+        include: { Service: true }
     });
     if (!main) return null;
 
@@ -384,12 +384,12 @@ export async function updateBooking(id: string, data: {
     // 1. Fetch Target
     const target = await prisma.booking.findUnique({
         where: { id },
-        include: { service: true }
+        include: { Service: true }
     });
     if (!target) throw new Error('Booking not found');
 
     // 2. Fetch New Service
-    let service: Service | null = target.service;
+    let service: Service | null = target.Service;
     if (data.serviceId && data.serviceId !== target.menuId) {
         service = await prisma.service.findUnique({ where: { id: data.serviceId } });
         if (!service) throw new Error('Service not found');
@@ -820,7 +820,7 @@ export async function getMonthlyStaffSummary(year: number, month: number) {
     const bookings = await prisma.booking.findMany({
         // @ts-ignore
         where: whereClause,
-        include: { service: true }
+        include: { Service: true }
     });
 
     const now = new Date();
