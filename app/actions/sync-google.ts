@@ -597,6 +597,7 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                 if (memoDate >= syncStart && memoDate < endOfMonthUTC) {
                     await prisma.bookingMemo.create({
                         data: {
+                            id: crypto.randomUUID(), // id required (no @default)
                             date: memoDate,
                             time: timeStr || '',
                             persons: parseInt(personsStr) || 0,
@@ -609,17 +610,30 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             }
             console.log(`[Sync] Synced ${memoCount} Booking Memos for ${month}/${year}.`);
 
-            // --- SYNC BOOKING INQUIRIES (同じ memoRows を BookingInquiry にも反映) ---
-            // 問い合わせ日(Col A) ベースで当月分を洗い替え
+        } catch (error: any) {
+            console.error("[Sync] Error syncing Booking Memos:", error.message);
+            memoError = error.message;
+        }
+
+        // --- SYNC BOOKING INQUIRIES (BookingMemoとは独立したtry-catchで実行) ---
+        // 問い合わせ日(Col A) ベースで当月分を洗い替え
+        try {
             const inqStart = new Date(Date.UTC(year, month - 1, 1));
             const inqEnd   = new Date(Date.UTC(year, month, 1));
+
+            // Booking sheet を再取得（BookingMemoと同じデータ）
+            const inqResponse = await sheets.spreadsheets.values.get({
+                spreadsheetId: SHEET_ID,
+                range: "'Booking'!A6:I",
+            });
+            const inqRows = inqResponse.data.values || [];
 
             await prisma.bookingInquiry.deleteMany({
                 where: { inquiryDate: { gte: inqStart, lt: inqEnd } }
             });
 
             let inqCount = 0;
-            for (const row of memoRows) {
+            for (const row of inqRows) {
                 const inquiryDateStr = (row[0] as string)?.trim();
                 const channel        = (row[1] as string)?.trim() || 'Direct';
                 const clientName     = (row[2] as string)?.trim() || null;
@@ -681,9 +695,8 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             }
             console.log(`[Sync] Synced ${inqCount} BookingInquiry records for ${month}/${year}.`);
 
-        } catch (error: any) {
-            console.error("[Sync] Error syncing Booking Memos:", error.message);
-            memoError = error.message;
+        } catch (inqError: any) {
+            console.error("[Sync] Error syncing BookingInquiry:", inqError.message);
         }
 
         revalidatePath('/admin/timeline');
