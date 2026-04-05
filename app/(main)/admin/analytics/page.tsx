@@ -14,7 +14,7 @@ import {
 type MonthlySummary  = Awaited<ReturnType<typeof getMonthlySummary>>[number];
 type MenuRow         = { menu: string; count: bigint; revenue: bigint };
 type HeatmapRow      = { dow: number; hour: number; count: number };
-type CancelRow       = Awaited<ReturnType<typeof getCancelStats>>[number];
+type CancelRow       = Awaited<ReturnType<typeof getCancelStats>>[number] & { inquiries?: number };
 type ChannelRow      = Awaited<ReturnType<typeof getChannelStats>>[number];
 type StaffPerfRow    = Awaited<ReturnType<typeof getStaffPerformance>>[number];
 type LaborSummary    = Awaited<ReturnType<typeof getLaborSummary>>;
@@ -261,11 +261,10 @@ export default function AnalyticsPage() {
                             <thead className="text-slate-500 border-b border-slate-800">
                                 <tr>
                                     <th className="text-left py-2 pr-4">月</th>
-                                    <th className="text-right py-2 pr-4">総予約</th>
+                                    <th className="text-right py-2 pr-4">確定予約</th>
+                                    <th className="text-right py-2 pr-4">問合せ数</th>
                                     <th className="text-right py-2 pr-4">No-show</th>
-                                    <th className="text-right py-2 pr-4">NS率</th>
-                                    <th className="text-right py-2 pr-4">キャンセル</th>
-                                    <th className="text-right py-2">CL率</th>
+                                    <th className="text-right py-2">NS率</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
@@ -273,18 +272,16 @@ export default function AnalyticsPage() {
                                     <tr key={r.month} className="hover:bg-slate-800/40">
                                         <td className="py-2 pr-4 font-mono text-slate-400">{r.month}</td>
                                         <td className="py-2 pr-4 text-right font-mono">{fmt(r.total)}</td>
+                                        <td className="py-2 pr-4 text-right font-mono text-slate-500">{fmt(r.inquiries ?? 0)}</td>
                                         <td className="py-2 pr-4 text-right font-mono">{fmt(r.noshow)}</td>
-                                        <td className={`py-2 pr-4 text-right font-mono ${r.noshowPct > 10 ? 'text-red-400' : 'text-slate-400'}`}>
+                                        <td className={`py-2 text-right font-mono ${r.noshowPct > 10 ? 'text-red-400' : 'text-slate-400'}`}>
                                             {r.noshowPct}%
-                                        </td>
-                                        <td className="py-2 pr-4 text-right font-mono">{fmt(r.cancelled)}</td>
-                                        <td className={`py-2 text-right font-mono ${r.cancelPct > 10 ? 'text-red-400' : 'text-slate-400'}`}>
-                                            {r.cancelPct}%
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+                        <p className="text-[10px] text-slate-600 mt-2">※ No-show率は問合せ管理（BookingInquiry）の来店フラグベース</p>
                     </div>
                 </section>
 

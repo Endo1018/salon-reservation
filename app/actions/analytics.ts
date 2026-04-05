@@ -78,6 +78,7 @@ export async function getHeatmap(months = 3) {
         FROM "Booking"
         WHERE status NOT IN ('Cancelled', 'SYNC_DRAFT')
           AND "startAt" >= ${since}
+          AND ("comboLinkId" IS NULL OR "isComboMain" = true)
         GROUP BY dow, hour
         ORDER BY dow, hour
     `;
@@ -85,35 +86,61 @@ export async function getHeatmap(months = 3) {
 }
 
 // ── No-show / キャンセル率 ─────────────────────────────────────────────
+// 予約総数: Bookingテーブル（Confirmed のみ、コンボはメインのみカウント）
+// No-show:  BookingInquiryテーブルの hasCome=false（実績データはこちらにある）
 export async function getCancelStats(months = 6) {
     const since = new Date();
     since.setMonth(since.getMonth() - months);
 
-    const rows = await prisma.$queryRaw<{
+    // 月次予約件数（Bookingベース、コンボ重複排除）
+    const bookingRows = await prisma.$queryRaw<{
         month: string;
         total: bigint;
-        noshow: bigint;
-        cancelled: bigint;
     }[]>`
         SELECT
             TO_CHAR("startAt" AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month,
-            COUNT(*)::bigint AS total,
-            SUM(CASE WHEN status = 'NoShow'    THEN 1 ELSE 0 END)::bigint AS noshow,
-            SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END)::bigint AS cancelled
+            COUNT(*)::bigint AS total
         FROM "Booking"
         WHERE status NOT IN ('SYNC_DRAFT')
           AND "startAt" >= ${since}
+          AND ("comboLinkId" IS NULL OR "isComboMain" = true)
         GROUP BY month
         ORDER BY month ASC
     `;
-    return rows.map(r => ({
-        month:     r.month,
-        total:     Number(r.total),
-        noshow:    Number(r.noshow),
-        cancelled: Number(r.cancelled),
-        noshowPct: Number(r.total) > 0 ? +(Number(r.noshow) / Number(r.total) * 100).toFixed(1) : 0,
-        cancelPct: Number(r.total) > 0 ? +(Number(r.cancelled) / Number(r.total) * 100).toFixed(1) : 0,
-    }));
+
+    // No-show & キャンセル（BookingInquiryベース）
+    const inquiryRows = await prisma.$queryRaw<{
+        month: string;
+        inquiries: bigint;
+        noshow: bigint;
+    }[]>`
+        SELECT
+            TO_CHAR("inquiryDate" AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month,
+            COUNT(*)::bigint AS inquiries,
+            SUM(CASE WHEN NOT "hasCome" THEN 1 ELSE 0 END)::bigint AS noshow
+        FROM "BookingInquiry"
+        WHERE "inquiryDate" >= ${since}
+        GROUP BY month
+        ORDER BY month ASC
+    `;
+
+    const inquiryMap = new Map(inquiryRows.map(r => [r.month, r]));
+
+    return bookingRows.map(r => {
+        const inq = inquiryMap.get(r.month);
+        const total     = Number(r.total);
+        const inquiries = inq ? Number(inq.inquiries) : 0;
+        const noshow    = inq ? Number(inq.noshow) : 0;
+        return {
+            month:      r.month,
+            total,
+            noshow,
+            cancelled:  0,  // 予約削除で対応しているためキャンセルステータス未使用
+            noshowPct:  inquiries > 0 ? +(noshow / inquiries * 100).toFixed(1) : 0,
+            cancelPct:  0,
+            inquiries,
+        };
+    });
 }
 
 // ── チャンネル別集計 ────────────────────────────────────────────────────
