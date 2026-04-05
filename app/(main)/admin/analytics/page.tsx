@@ -140,7 +140,6 @@ export default function AnalyticsPage() {
     const monthKey   = `${selYear}-${String(selMonth).padStart(2, '0')}`;
     const selRevData = monthly.find(r => r.month === monthKey);
     const selRevenue = selRevData?.revenue ?? 0;
-    const revGrowth  = selRevData?.revGrowth ?? null;
     const bookings   = selRevData?.bookings ?? 0;
 
     const prevKey      = selMonth === 1
@@ -155,6 +154,15 @@ export default function AnalyticsPage() {
     const isCurrentMonth    = labor?.isCurrentMonth ?? false;
     const elapsedDays       = labor?.elapsedDays ?? 0;
     const totalDays         = labor?.totalDays ?? 0;
+
+    // 当月は日割りで月末見込みを算出して先月と比較
+    const projectedRevenue = isCurrentMonth && elapsedDays > 0
+        ? Math.round(selRevenue * totalDays / elapsedDays)
+        : selRevenue;
+    const compareRevenue = projectedRevenue; // 信号機・アクションに使う
+    const revGrowth = prevRevenue > 0
+        ? Math.round((compareRevenue - prevRevenue) / prevRevenue * 100)
+        : null;
 
     // 比率計算：当月は日割り人件費で比較
     const effectiveLaborCost = isCurrentMonth ? proratedLaborCost : totalLaborCost;
@@ -233,8 +241,15 @@ export default function AnalyticsPage() {
                                     : '—'}
                             </p>
                             <p className="text-xs mt-2 opacity-70">
-                                先月：{fmtM(prevRevenue)}VND
+                                {isCurrentMonth
+                                    ? `月末見込み ${fmtM(projectedRevenue)} vs 先月 ${fmtM(prevRevenue)} VND`
+                                    : `先月：${fmtM(prevRevenue)} VND`}
                             </p>
+                            {isCurrentMonth && (
+                                <p className="text-xs mt-1 opacity-50">
+                                    ※ {elapsedDays}日実績を{totalDays}日換算
+                                </p>
+                            )}
                         </div>
 
                         {/* No-show率 */}
