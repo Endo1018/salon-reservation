@@ -609,6 +609,78 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
             }
             console.log(`[Sync] Synced ${memoCount} Booking Memos for ${month}/${year}.`);
 
+            // --- SYNC BOOKING INQUIRIES (同じ memoRows を BookingInquiry にも反映) ---
+            // 問い合わせ日(Col A) ベースで当月分を洗い替え
+            const inqStart = new Date(Date.UTC(year, month - 1, 1));
+            const inqEnd   = new Date(Date.UTC(year, month, 1));
+
+            await prisma.bookingInquiry.deleteMany({
+                where: { inquiryDate: { gte: inqStart, lt: inqEnd } }
+            });
+
+            let inqCount = 0;
+            for (const row of memoRows) {
+                const inquiryDateStr = (row[0] as string)?.trim();
+                const channel        = (row[1] as string)?.trim() || 'Direct';
+                const clientName     = (row[2] as string)?.trim() || null;
+                const personsStr     = (row[3] as string)?.trim();
+                const bookDateStr    = (row[4] as string)?.trim();
+                const timeStr        = (row[5] as string)?.trim() || null;
+                const comeStr        = (row[8] as string)?.trim()?.toUpperCase();
+
+                if (!inquiryDateStr) continue;
+
+                // Parse inquiry date (same logic as bookDateStr above)
+                let iYear: number | undefined, iMonth: number | undefined, iDay: number | undefined;
+                if (inquiryDateStr.includes('/') || inquiryDateStr.includes('-')) {
+                    const sep = inquiryDateStr.includes('/') ? '/' : '-';
+                    const parts = inquiryDateStr.split(sep);
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            [iYear, iMonth, iDay] = parts.map(Number);
+                        } else {
+                            [iDay, iMonth, iYear] = parts.map(Number);
+                        }
+                    }
+                }
+                if (!iYear || !iMonth || !iDay) continue;
+
+                const inquiryDate = new Date(Date.UTC(iYear, iMonth - 1, iDay));
+                if (inquiryDate < inqStart || inquiryDate >= inqEnd) continue;
+
+                // Parse booking date
+                let bookingDate: Date | null = null;
+                if (bookDateStr) {
+                    let bY: number | undefined, bM: number | undefined, bD: number | undefined;
+                    const sep2 = bookDateStr.includes('/') ? '/' : '-';
+                    const bParts = bookDateStr.split(sep2);
+                    if (bParts.length === 3) {
+                        if (bParts[0].length === 4) {
+                            [bY, bM, bD] = bParts.map(Number);
+                        } else {
+                            [bD, bM, bY] = bParts.map(Number);
+                        }
+                        if (bY && bM && bD) {
+                            bookingDate = new Date(Date.UTC(bY, bM - 1, bD));
+                        }
+                    }
+                }
+
+                await prisma.bookingInquiry.create({
+                    data: {
+                        inquiryDate,
+                        channel:     channel || 'Direct',
+                        clientName,
+                        persons:     parseInt(personsStr) || 1,
+                        bookingDate,
+                        bookingTime: timeStr,
+                        hasCome:     comeStr === 'TRUE',
+                    }
+                });
+                inqCount++;
+            }
+            console.log(`[Sync] Synced ${inqCount} BookingInquiry records for ${month}/${year}.`);
+
         } catch (error: any) {
             console.error("[Sync] Error syncing Booking Memos:", error.message);
             memoError = error.message;
