@@ -98,10 +98,12 @@ export default function AnalyticsPage() {
     const growthLevel: 'red'|'yellow'|'green' = revGrowth === null ? 'green'
         : revGrowth < -10 ? 'red' : revGrowth < -5 ? 'yellow' : 'green';
 
-    // No-show（直近月）
-    const latestCancel  = cancel[cancel.length - 1];
-    const noshowPct     = latestCancel?.noshowPct ?? 0;
-    const noshowLevel: 'red'|'yellow'|'green' = noshowPct > 15 ? 'red' : noshowPct > 8 ? 'yellow' : 'green';
+    // 選択月の来店データ
+    const selCancelData = cancel.find(r => r.month === monthKey);
+    const camePersons   = selCancelData?.camePersons ?? 0;
+    const prevMonthKey  = prevKey;
+    const prevCancelData = cancel.find(r => r.month === prevMonthKey);
+    const prevCamePersons = prevCancelData?.camePersons ?? 0;
 
     const maxRev = Math.max(...monthly.map(r => r.revenue), 1);
 
@@ -166,14 +168,19 @@ export default function AnalyticsPage() {
                             )}
                         </div>
 
-                        {/* No-show率 */}
-                        <div className={`rounded-xl border-2 p-5 ${TRAFFIC[noshowLevel]}`}>
-                            <p className="text-sm font-medium mb-1 opacity-80">来店キャンセル率</p>
+                        {/* 今月の来店人数 */}
+                        <div className="rounded-xl border-2 p-5 bg-slate-800/60 border-slate-600 text-slate-200">
+                            <p className="text-sm font-medium mb-1 opacity-80">今月の来店人数</p>
                             <p className="text-5xl font-bold tracking-tight">
-                                {latestCancel ? `${noshowPct}%` : '—'}
+                                {selCancelData ? fmt(camePersons) : '—'}
                             </p>
                             <p className="text-xs mt-2 opacity-70">
-                                {latestCancel?.month ?? '—'} 月 / 問合せ{fmt(latestCancel?.inquiries ?? 0)}件中
+                                名
+                                {prevCamePersons > 0 && (
+                                    <span className="ml-2">
+                                        先月：{fmt(prevCamePersons)} 名
+                                    </span>
+                                )}
                             </p>
                         </div>
                     </div>
