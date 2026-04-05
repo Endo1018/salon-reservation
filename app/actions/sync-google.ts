@@ -476,13 +476,14 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
 
                     await prisma.booking.create({
                         data: {
+                            id: crypto.randomUUID(),
                             menuId: service1.id,
                             menuName: service1.name,
                             staffId: staff1?.id,
                             resourceId: resId1!,
                             startAt: startAt1,
                             endAt: endAt1,
-                            status: 'SYNC_DRAFT', // Changed from Confirmed
+                            status: 'SYNC_DRAFT',
                             clientName: clientName,
                             comboLinkId: comboLinkId,
                             isComboMain: isCombo,
@@ -493,17 +494,18 @@ export async function syncBookingsFromGoogleSheets(targetDateStr?: string) {
                     if (isCombo && service2) {
                         await prisma.booking.create({
                             data: {
+                                id: crypto.randomUUID(),
                                 menuId: service2.id,
                                 menuName: service2.name,
                                 staffId: staff2?.id || staff1?.id,
                                 resourceId: resId2!,
                                 startAt: startAt2,
                                 endAt: endAt2,
-                                status: 'SYNC_DRAFT', // Changed from Confirmed
+                                status: 'SYNC_DRAFT',
                                 clientName: clientName,
                                 comboLinkId: comboLinkId,
                                 isComboMain: false,
-                                totalPrice: 0, // Store in main booking only for simplicity, or 0 for sub
+                                totalPrice: 0,
                             },
                         });
                     }
