@@ -142,7 +142,7 @@ export default async function AttendancePage({
 
             // Business Rule: Therapists (non-RECEPTION) arriving before 13:00 are
             // coming for bookings only, not their regular shift — no late penalty.
-            const isTherapist = record.staff?.role !== 'RECEPTION';
+            const isTherapist = record.Staff?.role !== 'RECEPTION';
             const shiftBefore13 = sStart < 13 * 60; // 780 min = 13:00
 
             if (isTherapist && shiftBefore13) {
@@ -157,9 +157,9 @@ export default async function AttendancePage({
             ...record,
             date: record.date.toISOString().split('T')[0],
             staff: {
-                name: record.staff.name
+                name: record.Staff?.name ?? ''
             },
-            staffRole: record.staff.role || 'THERAPIST',
+            staffRole: record.Staff?.role || 'THERAPIST',
             breakTime: record.breakTime ?? 1.0,
             overtime: record.overtime || 0,
             isOvertime: record.isOvertime || false,
