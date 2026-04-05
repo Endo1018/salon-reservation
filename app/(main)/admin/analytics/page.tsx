@@ -3,77 +3,130 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
     getMonthlySummary,
-    getMenuRanking,
-    getHeatmap,
     getCancelStats,
-    getChannelStats,
     getStaffPerformance,
     getLaborSummary,
 } from '@/app/actions/analytics';
 
-type MonthlySummary  = Awaited<ReturnType<typeof getMonthlySummary>>[number];
-type MenuRow         = { menu: string; count: bigint; revenue: bigint };
-type HeatmapRow      = { dow: number; hour: number; count: number };
-type CancelRow       = Awaited<ReturnType<typeof getCancelStats>>[number] & { inquiries?: number };
-type ChannelRow      = Awaited<ReturnType<typeof getChannelStats>>[number];
-type StaffPerfRow    = Awaited<ReturnType<typeof getStaffPerformance>>[number];
-type LaborSummary    = Awaited<ReturnType<typeof getLaborSummary>>;
+type MonthlySummary = Awaited<ReturnType<typeof getMonthlySummary>>[number];
+type CancelRow      = Awaited<ReturnType<typeof getCancelStats>>[number] & { inquiries?: number };
+type StaffPerfRow   = Awaited<ReturnType<typeof getStaffPerformance>>[number];
+type LaborSummary   = Awaited<ReturnType<typeof getLaborSummary>>;
 
-const DOW = ['日', '月', '火', '水', '木', '金', '土'];
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 8); // 8〜21時
-const fmt = (n: number) => n.toLocaleString();
+const fmt  = (n: number) => n.toLocaleString('ja-JP');
 const fmtM = (n: number) => (n / 1_000_000).toFixed(1) + 'M';
+
+// ── アクション提案ロジック ────────────────────────────────────────────
+type ActionItem = { level: 'red' | 'yellow' | 'green'; icon: string; title: string; body: string };
+
+function generateActionItems(params: {
+    laborRatio: number;
+    revGrowth: number | null;
+    noshowPct: number;
+    isCurrentMonth: boolean;
+    elapsedDays: number;
+    totalDays: number;
+    noshow: number;
+}): ActionItem[] {
+    const items: ActionItem[] = [];
+    const { laborRatio, revGrowth, noshowPct, isCurrentMonth, elapsedDays, totalDays, noshow } = params;
+
+    if (laborRatio > 60) {
+        items.push({
+            level: 'red',
+            icon: '⚠️',
+            title: '人件費が売上を圧迫しています',
+            body: `${isCurrentMonth ? `${elapsedDays}日分の売上に対して` : ''}人件費比率が ${laborRatio.toFixed(1)}% です。予約受付の積極化、またはシフト最適化を検討してください。`,
+        });
+    } else if (laborRatio > 45) {
+        items.push({
+            level: 'yellow',
+            icon: '📊',
+            title: '人件費の割合がやや高めです',
+            body: `人件費比率が ${laborRatio.toFixed(1)}% です。${isCurrentMonth ? `月末（${totalDays}日）に向けて売上が積み上がれば改善見込みです。` : ''}`,
+        });
+    }
+
+    if (revGrowth !== null && revGrowth < -10) {
+        items.push({
+            level: 'red',
+            icon: '📉',
+            title: '先月より売上が大幅に下がっています',
+            body: `前月比 ${revGrowth}% の減少です。集客施策の見直しが必要な可能性があります。`,
+        });
+    } else if (revGrowth !== null && revGrowth < -5) {
+        items.push({
+            level: 'yellow',
+            icon: '📉',
+            title: '売上がやや下がっています',
+            body: `前月比 ${revGrowth}% の減少です。引き続き状況をご確認ください。`,
+        });
+    }
+
+    if (noshowPct > 15) {
+        items.push({
+            level: 'red',
+            icon: '🚫',
+            title: '来店キャンセルが増えています',
+            body: `No-show率が ${noshowPct}% です（${noshow}件）。前日のリマインド連絡強化をお勧めします。`,
+        });
+    } else if (noshowPct > 8) {
+        items.push({
+            level: 'yellow',
+            icon: '⚡',
+            title: '来店キャンセルにご注意ください',
+            body: `No-show率が ${noshowPct}% です。チャンネル別の傾向確認をお勧めします。`,
+        });
+    }
+
+    if (items.length === 0) {
+        items.push({
+            level: 'green',
+            icon: '✅',
+            title: '今月は順調です',
+            body: '売上・人件費比率・来店状況がすべて良好な状態です。現在の運営を継続してください。',
+        });
+    }
+
+    return items;
+}
+
+// ── 信号機カード ─────────────────────────────────────────────────────
+const TRAFFIC: Record<'red'|'yellow'|'green', string> = {
+    red:    'bg-red-950/60 border-red-500/70 text-red-300',
+    yellow: 'bg-amber-950/60 border-amber-500/70 text-amber-300',
+    green:  'bg-emerald-950/60 border-emerald-500/70 text-emerald-300',
+};
 
 export default function AnalyticsPage() {
     const today = new Date();
     const [monthly,   setMonthly]   = useState<MonthlySummary[]>([]);
-    const [menus,     setMenus]     = useState<MenuRow[]>([]);
-    const [heatmap,   setHeatmap]   = useState<HeatmapRow[]>([]);
     const [cancel,    setCancel]    = useState<CancelRow[]>([]);
-    const [channels,  setChannels]  = useState<ChannelRow[]>([]);
     const [staffPerf, setStaffPerf] = useState<StaffPerfRow[]>([]);
     const [labor,     setLabor]     = useState<LaborSummary | null>(null);
     const [loading,   setLoading]   = useState(true);
-    const [period,    setPeriod]    = useState(6);
     const [selYear,   setSelYear]   = useState(today.getFullYear());
     const [selMonth,  setSelMonth]  = useState(today.getMonth() + 1);
+    const [showStaff, setShowStaff] = useState(false);
+    const [showTrend, setShowTrend] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
-        const [m, mn, hm, cs, ch, sp, lb] = await Promise.all([
+        const [m, cs, sp, lb] = await Promise.all([
             getMonthlySummary(),
-            getMenuRanking(period),
-            getHeatmap(period),
-            getCancelStats(period),
-            getChannelStats(period),
+            getCancelStats(6),
             getStaffPerformance(selYear, selMonth),
             getLaborSummary(selYear, selMonth),
         ]);
         setMonthly(m);
-        setMenus(mn as unknown as MenuRow[]);
-        setHeatmap(hm);
-        setCancel(cs);
-        setChannels(ch);
+        setCancel(cs as CancelRow[]);
         setStaffPerf(sp);
         setLabor(lb);
         setLoading(false);
-    }, [period, selYear, selMonth]);
+    }, [selYear, selMonth]);
 
     useEffect(() => { load(); }, [load]);
 
-    // ── ヒートマップ値 ──────────────────────────────────────────────────
-    const heatCell = (dow: number, hour: number) =>
-        heatmap.find(r => r.dow === dow && r.hour === hour)?.count ?? 0;
-    const maxHeat = Math.max(...heatmap.map(r => r.count), 1);
-
-    // ── 月次グラフ最大値 ────────────────────────────────────────────────
-    const maxRev = Math.max(...monthly.map(r => r.revenue), 1);
-    const maxBk  = Math.max(...monthly.map(r => r.bookings), 1);
-
-    // ── チャンネル最大値 ────────────────────────────────────────────────
-    const maxCh  = Math.max(...channels.map(c => c.total), 1);
-
-    // ── 月次セレクタ用ヘルパー ──────────────────────────────────────────
     function prevMonth() {
         if (selMonth === 1) { setSelYear(y => y - 1); setSelMonth(12); }
         else setSelMonth(m => m - 1);
@@ -83,283 +136,262 @@ export default function AnalyticsPage() {
         else setSelMonth(m => m + 1);
     }
 
-    // ── 人件費比率 ──────────────────────────────────────────────────────
-    const monthKey    = `${selYear}-${String(selMonth).padStart(2, '0')}`;
-    const selRevData  = monthly.find(r => r.month === monthKey);
-    const selRevenue  = selRevData?.revenue ?? 0;
-    const laborCost   = labor?.totalLaborCost ?? 0;
-    const laborRatio  = selRevenue > 0 ? (laborCost / selRevenue * 100) : 0;
+    // ── 計算 ──────────────────────────────────────────────────────────
+    const monthKey   = `${selYear}-${String(selMonth).padStart(2, '0')}`;
+    const selRevData = monthly.find(r => r.month === monthKey);
+    const selRevenue = selRevData?.revenue ?? 0;
+    const revGrowth  = selRevData?.revGrowth ?? null;
+    const bookings   = selRevData?.bookings ?? 0;
+
+    const prevKey      = selMonth === 1
+        ? `${selYear - 1}-12`
+        : `${selYear}-${String(selMonth - 1).padStart(2, '0')}`;
+    const prevRevData  = monthly.find(r => r.month === prevKey);
+    const prevRevenue  = prevRevData?.revenue ?? 0;
+    const prevBookings = prevRevData?.bookings ?? 0;
+
+    const totalLaborCost    = labor?.totalLaborCost ?? 0;
+    const proratedLaborCost = labor?.proratedLaborCost ?? 0;
+    const isCurrentMonth    = labor?.isCurrentMonth ?? false;
+    const elapsedDays       = labor?.elapsedDays ?? 0;
+    const totalDays         = labor?.totalDays ?? 0;
+
+    // 比率計算：当月は日割り人件費で比較
+    const effectiveLaborCost = isCurrentMonth ? proratedLaborCost : totalLaborCost;
+    const laborRatio  = selRevenue > 0 ? (effectiveLaborCost / selRevenue * 100) : 0;
+
+    // 信号機判定
+    const laborLevel: 'red'|'yellow'|'green' = laborRatio > 60 ? 'red' : laborRatio > 45 ? 'yellow' : 'green';
+    const growthLevel: 'red'|'yellow'|'green' = revGrowth === null ? 'green'
+        : revGrowth < -10 ? 'red' : revGrowth < -5 ? 'yellow' : 'green';
+
+    // No-show（直近月）
+    const latestCancel  = cancel[cancel.length - 1];
+    const noshowPct     = latestCancel?.noshowPct ?? 0;
+    const noshowCount   = latestCancel?.noshow ?? 0;
+    const noshowLevel: 'red'|'yellow'|'green' = noshowPct > 15 ? 'red' : noshowPct > 8 ? 'yellow' : 'green';
+
+    const actionItems = generateActionItems({
+        laborRatio,
+        revGrowth,
+        noshowPct,
+        isCurrentMonth,
+        elapsedDays,
+        totalDays,
+        noshow: noshowCount,
+    });
+
+    const maxRev = Math.max(...monthly.map(r => r.revenue), 1);
 
     return (
-        <div className="flex flex-col min-h-full bg-slate-950 text-slate-200 p-6 space-y-8">
-            {/* Header */}
+        <div className="min-h-screen bg-slate-900 text-slate-100 p-6 md:p-10 space-y-8 max-w-4xl mx-auto">
+
+            {/* ── ヘッダー ── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">集計ダッシュボード</h1>
-                    <p className="text-xs text-slate-500 mt-1">売上・予約・チャンネル・オペレーション分析</p>
+                    <h1 className="text-2xl font-bold text-white">経営状況レポート</h1>
+                    <p className="text-sm text-slate-400 mt-1">毎週の確認にご利用ください</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">表示期間:</span>
-                    {[3, 6, 12].map(m => (
-                        <button
-                            key={m}
-                            onClick={() => setPeriod(m)}
-                            className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
-                                period === m
-                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                    : 'bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            {m}ヶ月
-                        </button>
-                    ))}
+                <div className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-2">
+                    <button onClick={prevMonth} className="text-slate-300 hover:text-white text-xl px-1 transition-colors">←</button>
+                    <span className="font-bold text-white text-lg min-w-[80px] text-center">
+                        {selYear}年{selMonth}月
+                    </span>
+                    <button onClick={nextMonth} className="text-slate-300 hover:text-white text-xl px-1 transition-colors">→</button>
                 </div>
             </div>
 
-            {loading && <p className="text-slate-500 animate-pulse">読み込み中...</p>}
+            {loading ? (
+                <div className="flex items-center justify-center h-64">
+                    <p className="text-slate-400 text-lg animate-pulse">データを読み込んでいます…</p>
+                </div>
+            ) : <>
 
-            {!loading && <>
-                {/* ── 1. 月次サマリー ──────────────────────────────────── */}
-                <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
-                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">月次サマリー</h2>
-                    <div className="space-y-2">
-                        {monthly.slice(-period).map(m => (
-                            <div key={m.month} className="grid grid-cols-[80px_1fr_90px_80px_80px_80px] items-center gap-3 text-xs">
-                                <span className="font-mono text-slate-400">{m.month}</span>
-                                {/* 売上バー */}
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
+                {/* ── A. 信号機インジケーター ── */}
+                <section>
+                    <h2 className="text-base font-bold text-slate-400 mb-3 uppercase tracking-widest">今月の状況</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* 人件費比率 */}
+                        <div className={`rounded-xl border-2 p-5 ${TRAFFIC[laborLevel]}`}>
+                            <p className="text-sm font-medium mb-1 opacity-80">人件費の割合</p>
+                            <p className="text-5xl font-bold tracking-tight">
+                                {selRevenue > 0 ? `${laborRatio.toFixed(0)}%` : '—'}
+                            </p>
+                            <p className="text-xs mt-2 opacity-70">
+                                {isCurrentMonth
+                                    ? `${elapsedDays}日分の売上と比較（日割り）`
+                                    : '月全体の実績'}
+                            </p>
+                        </div>
+
+                        {/* 売上前月比 */}
+                        <div className={`rounded-xl border-2 p-5 ${TRAFFIC[growthLevel]}`}>
+                            <p className="text-sm font-medium mb-1 opacity-80">先月との売上比較</p>
+                            <p className="text-5xl font-bold tracking-tight">
+                                {revGrowth !== null
+                                    ? `${revGrowth > 0 ? '+' : ''}${revGrowth}%`
+                                    : '—'}
+                            </p>
+                            <p className="text-xs mt-2 opacity-70">
+                                先月：{fmtM(prevRevenue)}VND
+                            </p>
+                        </div>
+
+                        {/* No-show率 */}
+                        <div className={`rounded-xl border-2 p-5 ${TRAFFIC[noshowLevel]}`}>
+                            <p className="text-sm font-medium mb-1 opacity-80">来店キャンセル率</p>
+                            <p className="text-5xl font-bold tracking-tight">
+                                {latestCancel ? `${noshowPct}%` : '—'}
+                            </p>
+                            <p className="text-xs mt-2 opacity-70">
+                                {latestCancel?.month ?? '—'} 月 / 問合せ{fmt(latestCancel?.inquiries ?? 0)}件中
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── B. 核心数字 ── */}
+                <section>
+                    <h2 className="text-base font-bold text-slate-400 mb-3 uppercase tracking-widest">今月の数字</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* 売上 */}
+                        <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                            <p className="text-sm text-slate-400 mb-2">今月の売上</p>
+                            <p className="text-4xl font-bold text-white">{fmtM(selRevenue)}</p>
+                            <p className="text-sm text-slate-500 mt-1">VND</p>
+                            <p className="text-xs text-slate-600 mt-2">先月：{fmtM(prevRevenue)} VND</p>
+                        </div>
+
+                        {/* 予約件数 */}
+                        <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                            <p className="text-sm text-slate-400 mb-2">今月の予約件数</p>
+                            <p className="text-4xl font-bold text-white">{fmt(bookings)}</p>
+                            <p className="text-sm text-slate-500 mt-1">件</p>
+                            <p className="text-xs text-slate-600 mt-2">先月：{fmt(prevBookings)} 件</p>
+                        </div>
+
+                        {/* 人件費 */}
+                        <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                            <p className="text-sm text-slate-400 mb-2">今月の人件費</p>
+                            <p className="text-4xl font-bold text-white">{fmtM(totalLaborCost)}</p>
+                            <p className="text-sm text-slate-500 mt-1">VND（月額固定）</p>
+                            {isCurrentMonth && (
+                                <p className="text-xs text-slate-500 mt-2">
+                                    日割り換算：{fmtM(proratedLaborCost)} VND
+                                    <span className="text-slate-600">（{elapsedDays}/{totalDays}日）</span>
+                                </p>
+                            )}
+                            <p className="text-xs text-slate-600 mt-1">{labor?.headCount ?? 0} 名分</p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── C. アクション提案 ── */}
+                <section>
+                    <h2 className="text-base font-bold text-slate-400 mb-3 uppercase tracking-widest">次のアクション提案</h2>
+                    <div className="space-y-3">
+                        {actionItems.map((item, i) => (
+                            <div key={i} className={`rounded-xl border-2 p-4 flex gap-4 items-start ${TRAFFIC[item.level]}`}>
+                                <span className="text-2xl shrink-0">{item.icon}</span>
+                                <div>
+                                    <p className="font-bold text-base">{item.title}</p>
+                                    <p className="text-sm opacity-80 mt-1">{item.body}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* ── D. 売上推移（折りたたみ）── */}
+                <section className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <button
+                        onClick={() => setShowTrend(v => !v)}
+                        className="w-full flex items-center justify-between p-5 hover:bg-slate-700/50 transition-colors"
+                    >
+                        <span className="text-base font-bold text-slate-300">過去6ヶ月の売上推移</span>
+                        <span className="text-slate-500 text-sm">{showTrend ? '▲ 閉じる' : '▼ 開く'}</span>
+                    </button>
+                    {showTrend && (
+                        <div className="px-5 pb-5 space-y-2">
+                            {monthly.slice(-6).map(m => (
+                                <div key={m.month} className="flex items-center gap-3 text-sm">
+                                    <span className="font-mono text-slate-400 w-16 shrink-0">{m.month}</span>
+                                    <div className="flex-1 bg-slate-700 rounded-full h-3 overflow-hidden">
                                         <div
-                                            className="h-full bg-amber-500 rounded-full"
+                                            className="h-full bg-amber-500 rounded-full transition-all"
                                             style={{ width: `${(m.revenue / maxRev) * 100}%` }}
                                         />
                                     </div>
+                                    <span className="font-mono text-white w-16 text-right">{fmtM(m.revenue)}</span>
+                                    <span className="font-mono text-slate-500 w-12 text-right">{fmt(m.bookings)}件</span>
+                                    <span className={`font-mono w-14 text-right text-xs ${
+                                        m.revGrowth == null ? 'text-slate-600'
+                                        : m.revGrowth >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                    }`}>
+                                        {m.revGrowth != null ? `${m.revGrowth > 0 ? '+' : ''}${m.revGrowth}%` : '—'}
+                                    </span>
                                 </div>
-                                <span className="font-mono text-white text-right">{fmtM(m.revenue)}</span>
-                                <span className="font-mono text-slate-400 text-right">{fmt(m.bookings)}件</span>
-                                <span className="font-mono text-slate-500 text-right">{fmtM(m.avgSpend)}/件</span>
-                                <span className={`font-mono text-right ${
-                                    m.revGrowth == null ? 'text-slate-600' :
-                                    m.revGrowth >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                }`}>
-                                    {m.revGrowth != null ? `${m.revGrowth > 0 ? '+' : ''}${m.revGrowth}%` : '—'}
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                {/* ── E. No-show 詳細（折りたたみ省略版：最新3ヶ月のみ）── */}
+                <section className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+                    <h2 className="text-base font-bold text-slate-300 mb-4">来店キャンセル状況（直近3ヶ月）</h2>
+                    <div className="space-y-2">
+                        {cancel.slice(-3).map(r => (
+                            <div key={r.month} className="flex items-center justify-between text-sm">
+                                <span className="font-mono text-slate-400 w-20">{r.month}</span>
+                                <span className="text-slate-300">{fmt(r.total)} 件</span>
+                                <span className="text-slate-500">問合せ {fmt(r.inquiries ?? 0)} 件</span>
+                                <span className={`font-bold ${r.noshowPct > 15 ? 'text-red-400' : r.noshowPct > 8 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    NS率 {r.noshowPct}%
                                 </span>
                             </div>
                         ))}
                     </div>
                 </section>
 
-                {/* ── 2. メニューランキング + チャンネル ────────────────── */}
-                <div className="grid grid-cols-2 gap-6">
-                    {/* メニュー */}
-                    <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
-                        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">
-                            メニュー別予約数ランキング（直近{period}ヶ月）
-                        </h2>
-                        <div className="space-y-2">
-                            {menus.map((m, i) => {
-                                const count = Number(m.count);
-                                const maxCount = Number((menus[0] as any).count);
-                                return (
-                                    <div key={String(m.menu)} className="flex items-center gap-3 text-xs">
-                                        <span className="text-slate-600 w-4 shrink-0">{i + 1}</span>
-                                        <span className="text-slate-200 w-36 truncate shrink-0">{m.menu || '(不明)'}</span>
-                                        <div className="flex-1 bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                            <div
-                                                className="h-full bg-emerald-500 rounded-full"
-                                                style={{ width: `${(count / maxCount) * 100}%` }}
-                                            />
-                                        </div>
-                                        <span className="font-mono text-slate-300 w-10 text-right">{count}件</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-
-                    {/* チャンネル */}
-                    <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
-                        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">
-                            チャンネル別予約（直近{period}ヶ月）
-                        </h2>
-                        <div className="space-y-2">
-                            {channels.map(c => (
-                                <div key={c.channel} className="flex items-center gap-3 text-xs">
-                                    <span className="text-slate-200 w-28 truncate shrink-0">{c.channel}</span>
-                                    <div className="flex-1 bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                        <div
-                                            className="h-full bg-violet-500 rounded-full"
-                                            style={{ width: `${(c.total / maxCh) * 100}%` }}
-                                        />
-                                    </div>
-                                    <span className="font-mono text-slate-300 w-8 text-right">{c.total}</span>
-                                    <span className={`font-mono w-10 text-right ${
-                                        c.noshowRate > 20 ? 'text-red-400' :
-                                        c.noshowRate > 10 ? 'text-amber-400' : 'text-slate-500'
-                                    }`}>
-                                        {c.noshowRate}%
-                                    </span>
-                                    <span className="text-slate-600 text-[10px] w-10">NS率</span>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                </div>
-
-                {/* ── 3. ヒートマップ ──────────────────────────────────── */}
-                <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
-                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">
-                        時間帯 × 曜日 予約集中度（直近{period}ヶ月）
-                    </h2>
-                    <div className="overflow-x-auto">
-                        <table className="text-xs border-collapse">
-                            <thead>
-                                <tr>
-                                    <th className="w-8 text-slate-600 font-mono text-right pr-2"></th>
-                                    {DOW.map(d => (
-                                        <th key={d} className="w-10 text-center text-slate-500 font-bold pb-1">{d}</th>
+                {/* ── F. スタッフ別施術件数（折りたたみ）── */}
+                <section className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <button
+                        onClick={() => setShowStaff(v => !v)}
+                        className="w-full flex items-center justify-between p-5 hover:bg-slate-700/50 transition-colors"
+                    >
+                        <span className="text-base font-bold text-slate-300">スタッフ別 施術件数</span>
+                        <span className="text-slate-500 text-sm">{showStaff ? '▲ 閉じる' : '▼ 開く'}</span>
+                    </button>
+                    {showStaff && (
+                        <div className="px-5 pb-5">
+                            <table className="w-full text-sm">
+                                <thead className="text-slate-500 border-b border-slate-700">
+                                    <tr>
+                                        <th className="text-left py-2 pr-4">スタッフ</th>
+                                        <th className="text-right py-2 pr-4">施術件数</th>
+                                        <th className="text-right py-2 pr-4">稼働時間</th>
+                                        <th className="text-right py-2">コミッション等</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800">
+                                    {staffPerf.length === 0 ? (
+                                        <tr><td colSpan={4} className="py-4 text-center text-slate-600">データなし</td></tr>
+                                    ) : staffPerf.map(s => (
+                                        <tr key={s.staffId} className="hover:bg-slate-700/30">
+                                            <td className="py-2 pr-4 text-slate-200 font-medium">{s.staffName}</td>
+                                            <td className="py-2 pr-4 text-right font-mono text-slate-300">{s.count} 件</td>
+                                            <td className="py-2 pr-4 text-right font-mono text-slate-400">{s.workHours}h</td>
+                                            <td className="py-2 text-right font-mono text-cyan-400">
+                                                {s.commission > 0 ? `${fmtM(s.commission)} VND` : '—'}
+                                            </td>
+                                        </tr>
                                     ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {HOURS.map(hour => (
-                                    <tr key={hour}>
-                                        <td className="text-slate-600 font-mono text-right pr-2 py-0.5">{hour}時</td>
-                                        {DOW.map((_, dow) => {
-                                            const val = heatCell(dow, hour);
-                                            const intensity = val / maxHeat;
-                                            const bg = intensity === 0 ? 'bg-slate-800'
-                                                : intensity < 0.25 ? 'bg-amber-900/60'
-                                                : intensity < 0.5  ? 'bg-amber-700/70'
-                                                : intensity < 0.75 ? 'bg-amber-500/80'
-                                                : 'bg-amber-400';
-                                            return (
-                                                <td key={dow} className="p-0.5">
-                                                    <div
-                                                        className={`w-9 h-6 rounded flex items-center justify-center font-mono ${bg} ${val > 0 ? 'text-white' : 'text-slate-700'}`}
-                                                        title={`${DOW[dow]}曜 ${hour}時: ${val}件`}
-                                                    >
-                                                        {val > 0 ? val : ''}
-                                                    </div>
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </section>
 
-                {/* ── 4. No-show / キャンセル率 ────────────────────────── */}
-                <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
-                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">
-                        No-show / キャンセル率
-                    </h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                            <thead className="text-slate-500 border-b border-slate-800">
-                                <tr>
-                                    <th className="text-left py-2 pr-4">月</th>
-                                    <th className="text-right py-2 pr-4">確定予約</th>
-                                    <th className="text-right py-2 pr-4">問合せ数</th>
-                                    <th className="text-right py-2 pr-4">No-show</th>
-                                    <th className="text-right py-2">NS率</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {cancel.map(r => (
-                                    <tr key={r.month} className="hover:bg-slate-800/40">
-                                        <td className="py-2 pr-4 font-mono text-slate-400">{r.month}</td>
-                                        <td className="py-2 pr-4 text-right font-mono">{fmt(r.total)}</td>
-                                        <td className="py-2 pr-4 text-right font-mono text-slate-500">{fmt(r.inquiries ?? 0)}</td>
-                                        <td className="py-2 pr-4 text-right font-mono">{fmt(r.noshow)}</td>
-                                        <td className={`py-2 text-right font-mono ${r.noshowPct > 10 ? 'text-red-400' : 'text-slate-400'}`}>
-                                            {r.noshowPct}%
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <p className="text-[10px] text-slate-600 mt-2">※ No-show率は問合せ管理（BookingInquiry）の来店フラグベース</p>
-                    </div>
-                </section>
-
-                {/* ── 5. スタッフ & 人件費（月次セレクタ付き）────────── */}
-                <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 space-y-6">
-                    {/* 月セレクタ */}
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                            スタッフ / 人件費
-                        </h2>
-                        <div className="flex items-center gap-2">
-                            <button onClick={prevMonth} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors">←</button>
-                            <span className="font-mono text-sm text-white min-w-[72px] text-center">
-                                {selYear}/{String(selMonth).padStart(2, '0')}
-                            </span>
-                            <button onClick={nextMonth} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors">→</button>
-                        </div>
-                    </div>
-
-                    {/* 人件費KPI */}
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-slate-800/50 rounded-lg p-3">
-                            <p className="text-xs text-slate-500 mb-1">月次人件費合計</p>
-                            <p className="text-lg font-mono font-bold text-cyan-400">
-                                ₫ {fmt(laborCost)}
-                            </p>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-lg p-3">
-                            <p className="text-xs text-slate-500 mb-1">スタッフ数</p>
-                            <p className="text-lg font-mono font-bold text-slate-200">
-                                {labor?.headCount ?? 0} 名
-                            </p>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-lg p-3">
-                            <p className="text-xs text-slate-500 mb-1">売上対人件費比率</p>
-                            <p className={`text-lg font-mono font-bold ${
-                                laborRatio > 60 ? 'text-red-400' :
-                                laborRatio > 0  ? 'text-emerald-400' : 'text-slate-500'
-                            }`}>
-                                {selRevenue > 0 ? `${laborRatio.toFixed(1)}%` : '—'}
-                            </p>
-                            {laborRatio > 60 && (
-                                <p className="text-xs text-red-400 mt-0.5">⚠ 高コスト</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* スタッフ別施術件数 */}
-                    <div>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">スタッフ別施術件数</p>
-                        <table className="w-full text-xs">
-                            <thead className="text-slate-600 border-b border-slate-800">
-                                <tr>
-                                    <th className="text-left py-2 pr-4">スタッフ</th>
-                                    <th className="text-right py-2 pr-4">施術件数</th>
-                                    <th className="text-right py-2 pr-4">稼働時間</th>
-                                    <th className="text-right py-2 pr-4">残業</th>
-                                    <th className="text-right py-2">コミッション等</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {staffPerf.length === 0 ? (
-                                    <tr><td colSpan={5} className="py-4 text-center text-slate-600">データなし</td></tr>
-                                ) : staffPerf.map(s => (
-                                    <tr key={s.staffId} className="hover:bg-slate-800/40">
-                                        <td className="py-2 pr-4 text-slate-200 font-medium">{s.staffName}</td>
-                                        <td className="py-2 pr-4 text-right font-mono text-slate-300">{s.count}</td>
-                                        <td className="py-2 pr-4 text-right font-mono text-slate-400">{s.workHours}h</td>
-                                        <td className="py-2 pr-4 text-right font-mono text-slate-500">{s.overtime}h</td>
-                                        <td className="py-2 text-right font-mono text-cyan-400">
-                                            {s.commission > 0 ? `₫ ${fmt(s.commission)}` : '—'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
             </>}
         </div>
     );

@@ -280,7 +280,21 @@ export async function getLaborSummary(year: number, month: number) {
             (adj?.deduction ?? 0) - (adj?.fine ?? 0);
     }
 
-    return { totalLaborCost, headCount: staffList.length };
+    // 日割り計算：当月途中の場合、経過日数分の人件費で比較する
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
+    const totalDays = new Date(year, month, 0).getDate(); // 月の総日数
+    const elapsedDays = isCurrentMonth ? Math.min(today.getDate(), totalDays) : totalDays;
+    const proratedLaborCost = Math.round(totalLaborCost * elapsedDays / totalDays);
+
+    return {
+        totalLaborCost,
+        proratedLaborCost,
+        headCount: staffList.length,
+        isCurrentMonth,
+        elapsedDays,
+        totalDays,
+    };
 }
 
 // ── チャンネル × 月 トレンド ────────────────────────────────────────────
