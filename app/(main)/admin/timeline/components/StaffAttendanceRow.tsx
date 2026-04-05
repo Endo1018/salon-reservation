@@ -15,7 +15,7 @@ export default async function StaffAttendanceRow({ date }: Props) {
             },
             status: { not: 'OFF' } // Simple filter
         },
-        include: { staff: true }
+        include: { Staff: true }
     });
 
     const targetDate = new Date(`${date}T00:00:00`);
@@ -30,7 +30,7 @@ export default async function StaffAttendanceRow({ date }: Props) {
             ]
         },
         include: {
-            shifts: {
+            Shift: {
                 where: {
                     date: {
                         gte: new Date(`${date}T00:00:00`),
@@ -46,7 +46,7 @@ export default async function StaffAttendanceRow({ date }: Props) {
             <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Staff Attendance:</span>
             <div className="flex flex-wrap gap-2">
                 {staff.map(s => {
-                    const shift = s.shifts[0];
+                    const shift = s.Shift[0];
                     const status = shift?.status?.toUpperCase();
                     const isOff = status === 'OFF' || status === 'AL' || status === 'HOLIDAY';
 

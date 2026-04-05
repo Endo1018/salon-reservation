@@ -100,7 +100,7 @@ export default async function AttendancePage({
             { date: 'desc' },
             { staffId: 'asc' }
         ],
-        include: { staff: true },
+        include: { Staff: true },
     });
 
     // Fetch Shifts
