@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  * Google Sheets → Fetch Draft → Publish を自動実行
  * Authorization: Bearer <CRON_SECRET>
  */
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
     // 認証チェック
     const auth = req.headers.get('authorization') ?? '';
     const secret = process.env.CRON_SECRET;
