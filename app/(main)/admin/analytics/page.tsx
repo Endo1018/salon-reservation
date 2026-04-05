@@ -9,87 +9,12 @@ import {
 } from '@/app/actions/analytics';
 
 type MonthlySummary = Awaited<ReturnType<typeof getMonthlySummary>>[number];
-type CancelRow      = Awaited<ReturnType<typeof getCancelStats>>[number] & { inquiries?: number };
+type CancelRow      = Awaited<ReturnType<typeof getCancelStats>>[number];
 type StaffPerfRow   = Awaited<ReturnType<typeof getStaffPerformance>>[number];
 type LaborSummary   = Awaited<ReturnType<typeof getLaborSummary>>;
 
 const fmt  = (n: number) => n.toLocaleString('ja-JP');
 const fmtM = (n: number) => (n / 1_000_000).toFixed(1) + 'M';
-
-// ── アクション提案ロジック ────────────────────────────────────────────
-type ActionItem = { level: 'red' | 'yellow' | 'green'; icon: string; title: string; body: string };
-
-function generateActionItems(params: {
-    laborRatio: number;
-    revGrowth: number | null;
-    noshowPct: number;
-    isCurrentMonth: boolean;
-    elapsedDays: number;
-    totalDays: number;
-    noshow: number;
-}): ActionItem[] {
-    const items: ActionItem[] = [];
-    const { laborRatio, revGrowth, noshowPct, isCurrentMonth, elapsedDays, totalDays, noshow } = params;
-
-    if (laborRatio > 60) {
-        items.push({
-            level: 'red',
-            icon: '⚠️',
-            title: '人件費が売上を圧迫しています',
-            body: `${isCurrentMonth ? `${elapsedDays}日分の売上に対して` : ''}人件費比率が ${laborRatio.toFixed(1)}% です。予約受付の積極化、またはシフト最適化を検討してください。`,
-        });
-    } else if (laborRatio > 45) {
-        items.push({
-            level: 'yellow',
-            icon: '📊',
-            title: '人件費の割合がやや高めです',
-            body: `人件費比率が ${laborRatio.toFixed(1)}% です。${isCurrentMonth ? `月末（${totalDays}日）に向けて売上が積み上がれば改善見込みです。` : ''}`,
-        });
-    }
-
-    if (revGrowth !== null && revGrowth < -10) {
-        items.push({
-            level: 'red',
-            icon: '📉',
-            title: '先月より売上が大幅に下がっています',
-            body: `前月比 ${revGrowth}% の減少です。集客施策の見直しが必要な可能性があります。`,
-        });
-    } else if (revGrowth !== null && revGrowth < -5) {
-        items.push({
-            level: 'yellow',
-            icon: '📉',
-            title: '売上がやや下がっています',
-            body: `前月比 ${revGrowth}% の減少です。引き続き状況をご確認ください。`,
-        });
-    }
-
-    if (noshowPct > 15) {
-        items.push({
-            level: 'red',
-            icon: '🚫',
-            title: '来店キャンセルが増えています',
-            body: `No-show率が ${noshowPct}% です（${noshow}件）。前日のリマインド連絡強化をお勧めします。`,
-        });
-    } else if (noshowPct > 8) {
-        items.push({
-            level: 'yellow',
-            icon: '⚡',
-            title: '来店キャンセルにご注意ください',
-            body: `No-show率が ${noshowPct}% です。チャンネル別の傾向確認をお勧めします。`,
-        });
-    }
-
-    if (items.length === 0) {
-        items.push({
-            level: 'green',
-            icon: '✅',
-            title: '今月は順調です',
-            body: '売上・人件費比率・来店状況がすべて良好な状態です。現在の運営を継続してください。',
-        });
-    }
-
-    return items;
-}
 
 // ── 信号機カード ─────────────────────────────────────────────────────
 const TRAFFIC: Record<'red'|'yellow'|'green', string> = {
@@ -176,18 +101,7 @@ export default function AnalyticsPage() {
     // No-show（直近月）
     const latestCancel  = cancel[cancel.length - 1];
     const noshowPct     = latestCancel?.noshowPct ?? 0;
-    const noshowCount   = latestCancel?.noshow ?? 0;
     const noshowLevel: 'red'|'yellow'|'green' = noshowPct > 15 ? 'red' : noshowPct > 8 ? 'yellow' : 'green';
-
-    const actionItems = generateActionItems({
-        laborRatio,
-        revGrowth,
-        noshowPct,
-        isCurrentMonth,
-        elapsedDays,
-        totalDays,
-        noshow: noshowCount,
-    });
 
     const maxRev = Math.max(...monthly.map(r => r.revenue), 1);
 
@@ -301,21 +215,6 @@ export default function AnalyticsPage() {
                     </div>
                 </section>
 
-                {/* ── C. アクション提案 ── */}
-                <section>
-                    <h2 className="text-base font-bold text-slate-400 mb-3 uppercase tracking-widest">次のアクション提案</h2>
-                    <div className="space-y-3">
-                        {actionItems.map((item, i) => (
-                            <div key={i} className={`rounded-xl border-2 p-4 flex gap-4 items-start ${TRAFFIC[item.level]}`}>
-                                <span className="text-2xl shrink-0">{item.icon}</span>
-                                <div>
-                                    <p className="font-bold text-base">{item.title}</p>
-                                    <p className="text-sm opacity-80 mt-1">{item.body}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
 
                 {/* ── D. 売上推移（折りたたみ）── */}
                 <section className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
@@ -351,20 +250,32 @@ export default function AnalyticsPage() {
                     )}
                 </section>
 
-                {/* ── E. No-show 詳細（折りたたみ省略版：最新3ヶ月のみ）── */}
+                {/* ── E. 予約・来店統計（直近3ヶ月）── */}
                 <section className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-                    <h2 className="text-base font-bold text-slate-300 mb-4">来店キャンセル状況（直近3ヶ月）</h2>
-                    <div className="space-y-2">
-                        {cancel.slice(-3).map(r => (
-                            <div key={r.month} className="flex items-center justify-between text-sm">
-                                <span className="font-mono text-slate-400 w-20">{r.month}</span>
-                                <span className="text-slate-300">{fmt(r.total)} 件</span>
-                                <span className="text-slate-500">問合せ {fmt(r.inquiries ?? 0)} 件</span>
-                                <span className={`font-bold ${r.noshowPct > 15 ? 'text-red-400' : r.noshowPct > 8 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                    NS率 {r.noshowPct}%
-                                </span>
-                            </div>
-                        ))}
+                    <h2 className="text-base font-bold text-slate-300 mb-4">予約・来店状況（直近3ヶ月）</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-slate-500 border-b border-slate-700">
+                                <tr>
+                                    <th className="text-left py-2 pr-4">月</th>
+                                    <th className="text-right py-2 pr-4">予約受付件数<br/><span className="text-xs font-normal">（問い合わせ数）</span></th>
+                                    <th className="text-right py-2 pr-4">予約件数<br/><span className="text-xs font-normal">（予約日あり）</span></th>
+                                    <th className="text-right py-2 pr-4">予約来店件数<br/><span className="text-xs font-normal">（来店した件数）</span></th>
+                                    <th className="text-right py-2">予約来店人数<br/><span className="text-xs font-normal">（来店した人数）</span></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700/50">
+                                {cancel.slice(-3).map(r => (
+                                    <tr key={r.month} className="hover:bg-slate-700/30">
+                                        <td className="py-3 pr-4 font-mono text-slate-400">{r.month}</td>
+                                        <td className="py-3 pr-4 text-right font-mono text-slate-200">{fmt(r.inquiries)}</td>
+                                        <td className="py-3 pr-4 text-right font-mono text-slate-200">{fmt(r.booked)}</td>
+                                        <td className="py-3 pr-4 text-right font-mono text-slate-200">{fmt(r.came)}</td>
+                                        <td className="py-3 text-right font-mono text-slate-200">{fmt(r.camePersons)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 

@@ -85,62 +85,43 @@ export async function getHeatmap(months = 3) {
     return rows.map(r => ({ dow: r.dow, hour: r.hour, count: Number(r.count) }));
 }
 
-// ── No-show / キャンセル率 ─────────────────────────────────────────────
-// 予約総数: Bookingテーブル（Confirmed のみ、コンボはメインのみカウント）
-// No-show:  BookingInquiryテーブルの hasCome=false（実績データはこちらにある）
+// ── 予約受付・来店統計（BookingInquiry ベース）────────────────────────
 export async function getCancelStats(months = 6) {
     const since = new Date();
     since.setMonth(since.getMonth() - months);
 
-    // 月次予約件数（Bookingベース、コンボ重複排除）
-    const bookingRows = await prisma.$queryRaw<{
+    const rows = await prisma.$queryRaw<{
         month: string;
-        total: bigint;
-    }[]>`
-        SELECT
-            TO_CHAR("startAt" AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month,
-            COUNT(*)::bigint AS total
-        FROM "Booking"
-        WHERE status NOT IN ('SYNC_DRAFT')
-          AND "startAt" >= ${since}
-          AND ("comboLinkId" IS NULL OR "isComboMain" = true)
-        GROUP BY month
-        ORDER BY month ASC
-    `;
-
-    // No-show & キャンセル（BookingInquiryベース）
-    const inquiryRows = await prisma.$queryRaw<{
-        month: string;
-        inquiries: bigint;
-        noshow: bigint;
+        inquiries: bigint;   // 予約受付件数（問い合わせ数）
+        booked: bigint;      // 予約件数（bookingDate が設定された件数）
+        came: bigint;        // 予約来店件数
+        camePersons: bigint; // 予約来店人数
     }[]>`
         SELECT
             TO_CHAR("inquiryDate" AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month,
-            COUNT(*)::bigint AS inquiries,
-            SUM(CASE WHEN NOT "hasCome" THEN 1 ELSE 0 END)::bigint AS noshow
+            COUNT(*)::bigint                                                         AS inquiries,
+            SUM(CASE WHEN "bookingDate" IS NOT NULL THEN 1 ELSE 0 END)::bigint      AS booked,
+            SUM(CASE WHEN "hasCome" THEN 1 ELSE 0 END)::bigint                      AS came,
+            COALESCE(SUM(CASE WHEN "hasCome" THEN persons ELSE 0 END), 0)::bigint   AS "camePersons"
         FROM "BookingInquiry"
         WHERE "inquiryDate" >= ${since}
         GROUP BY month
         ORDER BY month ASC
     `;
 
-    const inquiryMap = new Map(inquiryRows.map(r => [r.month, r]));
-
-    return bookingRows.map(r => {
-        const inq = inquiryMap.get(r.month);
-        const total     = Number(r.total);
-        const inquiries = inq ? Number(inq.inquiries) : 0;
-        const noshow    = inq ? Number(inq.noshow) : 0;
-        return {
-            month:      r.month,
-            total,
-            noshow,
-            cancelled:  0,  // 予約削除で対応しているためキャンセルステータス未使用
-            noshowPct:  inquiries > 0 ? +(noshow / inquiries * 100).toFixed(1) : 0,
-            cancelPct:  0,
-            inquiries,
-        };
-    });
+    return rows.map(r => ({
+        month:       r.month,
+        inquiries:   Number(r.inquiries),
+        booked:      Number(r.booked),
+        came:        Number(r.came),
+        camePersons: Number(r.camePersons),
+        // 後方互換（アクション提案削除済みだが型安全のため残す）
+        total:       Number(r.inquiries),
+        noshow:      Number(r.inquiries) - Number(r.came),
+        noshowPct:   Number(r.inquiries) > 0
+            ? +((Number(r.inquiries) - Number(r.came)) / Number(r.inquiries) * 100).toFixed(1)
+            : 0,
+    }));
 }
 
 // ── チャンネル別集計 ────────────────────────────────────────────────────
